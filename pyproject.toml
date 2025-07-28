@@ -1,0 +1,24 @@
+[tool.poetry]
+name        = "tgbot"
+version     = "0.1.0"
+description = "ZnayMed"
+authors     = ["mor80 <egmor80@gmail.com>"]
+
+packages = [
+  { include = "tgbot", from = "src" }
+]
+
+[tool.poetry.dependencies]
+python        = "^3.12"
+aiogram       = ">=3.21.0,<4.0.0"
+python-dotenv = ">=1.1.1,<2.0.0"
+
+[tool.poetry.group.dev.dependencies]
+black  = "^25.1.0"
+isort  = "^6.0.1"
+pytest = "^8.4.1"
+
+[build-system]
+requires      = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
