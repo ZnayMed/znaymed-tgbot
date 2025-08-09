@@ -9,7 +9,7 @@ from tgbot.lexicon import t
 from tgbot.services.api_client import APIGatewayClient
 
 log = logging.getLogger(__name__)
-router = Router()
+router = Router(name="courses")
 
 
 @router.message(Command("courses"))
