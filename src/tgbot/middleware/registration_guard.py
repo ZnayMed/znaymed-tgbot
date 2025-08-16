@@ -4,26 +4,44 @@ import httpx
 
 from tgbot.lexicon import t
 from tgbot.services.api_client import APIGatewayClient
+from tgbot.services.redis_client import get_redis, is_redis_available
+from tgbot.services.user_cache import is_registered_cached, cache_registered
 
 
 class RegistrationGuardMiddleware(BaseMiddleware):
-    """Блокирует все команды, кроме /start, если юзер не зарегистрирован."""
-
-    def __init__(self, api: APIGatewayClient):
+    def __init__(self, api: APIGatewayClient, allowed: set[str] | None = None):
         self.api = api
-        self._allowed = {"/start", "/info"}
+        self.allowed = allowed or {"/start", "/info"}
 
     async def __call__(self, handler, event: Message, data):
-        if event.text and event.text.startswith("/"):
-            command = event.text.split()[0]
-            if command not in self._allowed:
-                try:
-                    if await self.api.user_exists(event.from_user.id):
-                        return
-                except httpx.HTTPStatusError as e:
-                    if e.response.status_code == 404:
-                        await event.answer(t("need_register"))
-                        return
-                except httpx.HTTPError:
-                    pass  # сеть недоступна – пропускаем
-        return await handler(event, data)
+        txt = event.text or ""
+        if not txt.startswith("/"):
+            return await handler(event, data)
+
+        cmd = txt.split()[0]
+        if cmd in self.allowed:
+            return await handler(event, data)
+
+        uid = event.from_user.id
+        r = get_redis()
+        redis_up = await is_redis_available()
+
+        # 1) Redis
+        if redis_up and await is_registered_cached(r, uid):
+            return await handler(event, data)
+
+        # 2) API
+        try:
+            exists = await self.api.user_exists(uid)
+        except httpx.HTTPError:
+            # сеть недоступна — не ломаем UX, пропускаем
+            return await handler(event, data)
+
+        if exists:
+            if redis_up:
+                await cache_registered(r, uid)
+            return await handler(event, data)
+
+        # 3) Не зарегистрирован — блокируем
+        await event.answer(t("need_register"))
+        return

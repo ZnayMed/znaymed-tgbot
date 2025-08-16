@@ -15,3 +15,7 @@ class APIGatewayClient(httpx.AsyncClient):
         body = {"name": name, "tgid": str(tg_user_id), "birthdate": dob_iso}
         print(body)
         return await self.request_json("POST", "/register", json=body)
+
+    async def get_subjects(self) -> list[str]:
+        data = await self.request_json("GET", "/listsubjects")
+        return [str(s) for s in (data.get("subjects") or [])]

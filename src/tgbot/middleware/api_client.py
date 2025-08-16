@@ -7,8 +7,6 @@ from tgbot.services.api_client import APIGatewayClient
 
 
 class APIClientMiddleware(BaseMiddleware):
-    """Инжектит API-клиент в data каждого хендлера."""
-
     def __init__(self, client: APIGatewayClient):
         self.client = client
 

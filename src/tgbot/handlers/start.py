@@ -5,13 +5,17 @@ from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import CallbackQuery, Message
 
+from tgbot.keyboards.start_kb import kb_reg
 from tgbot.lexicon import t
 from tgbot.services.api_client import APIGatewayClient
 from tgbot.services.redis_client import get_redis
-from tgbot.services.reg_prompts import add_prompt
-from tgbot.services.registration_service import ensure_not_registered, mute_old_prompts
+from tgbot.services.registration_service import ensure_not_registered
+from tgbot.services.user_cache import cache_registered
+
+from tgbot.utils.prompt_cleaner import clean_user_prompts, register_prompt
+
 
 log = logging.getLogger(__name__)
 router = Router(name="start")
@@ -20,11 +24,6 @@ router = Router(name="start")
 class Reg(StatesGroup):
     name = State()
     dob = State()
-
-
-kb_reg = InlineKeyboardMarkup(
-    inline_keyboard=[[InlineKeyboardButton(text="📝 Регистрация", callback_data="reg")]]
-)
 
 
 def _parse_dob(text: str) -> dt.date | None:
@@ -40,15 +39,15 @@ def _parse_dob(text: str) -> dt.date | None:
 
 @router.message(CommandStart())
 async def cmd_start(msg: Message, api_client: APIGatewayClient):
-    # Сначала зачистим все старые кнопки (на всякий)
-    await mute_old_prompts(msg.from_user.id, msg.bot)
+    await clean_user_prompts(msg.from_user.id, msg.bot, kind="reg")
 
-    # Если уже зарегистрирован — сервис сам сообщит пользователю и выйдет
     if not await ensure_not_registered(msg.from_user.id, msg.bot, api_client):
+        # Пользователь уже зарегистрирован -> сразу главное меню
         return
 
-    sent = await msg.answer(t("welcome_register"), reply_markup=kb_reg)
-    await add_prompt(get_redis(), msg.from_user.id, sent.chat.id, sent.message_id)
+    # Не зарегистрирован -> показываем экран регистрации
+    sent = await msg.answer(t("welcome_register"), reply_markup=kb_reg())
+    await register_prompt(msg.from_user.id, sent.chat.id, sent.message_id, kind="reg")
 
 
 @router.callback_query(F.data == "reg")
@@ -57,7 +56,7 @@ async def cb_start_reg(cb: CallbackQuery, state: FSMContext, api_client: APIGate
         await cb.answer()
         return
 
-    # Гасим клавиатуру у нажатого сообщения
+    # Гасим клавиатуру у текущего registration-сообщения (оно уже записано как kind="reg")
     try:
         await cb.message.edit_reply_markup(reply_markup=None)
     except Exception:
@@ -93,10 +92,16 @@ async def reg_dob(msg: Message, state: FSMContext, api_client: APIGatewayClient)
     data = await state.get_data()
     name: str = data["name"]
 
-    # Регистрация
+    # Регистрация в бэкенде
     await api_client.register_user(msg.from_user.id, name, dob.isoformat())
 
-    # Успех: чистим состояние и все старые кнопки
+    # Позитивный кэш
+    r = get_redis()
+    await cache_registered(r, msg.from_user.id)
+
     await state.clear()
-    await mute_old_prompts(msg.from_user.id, msg.bot)
+
+    # Чистим экраны регистрации и показываем главное меню (одно сообщение)
+    await clean_user_prompts(msg.from_user.id, msg.bot, kind="reg")
     await msg.answer(t("reg_success"))
+    # await send_main_menu(msg.bot, msg.chat.id, msg.from_user.id)
