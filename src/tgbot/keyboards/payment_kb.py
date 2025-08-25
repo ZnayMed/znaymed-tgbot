@@ -22,9 +22,9 @@ def _add_pager(builder: InlineKeyboardBuilder, page: int, last_page: int, prev_c
         builder.row(*nav)
 
 
-def _add_cart_controls(builder: InlineKeyboardBuilder, cart_count: int) -> None:
+def _add_cart_controls(builder: InlineKeyboardBuilder, cart_count: int, *, open_cb: str = "paysec:cart") -> None:
     if cart_count > 0:
-        builder.row(InlineKeyboardButton(text=f"🛒 Корзина ({cart_count})", callback_data="paysec:checkout"))
+        builder.row(InlineKeyboardButton(text=f"🛒 Корзина ({cart_count})", callback_data=open_cb))
     else:
         builder.row(InlineKeyboardButton(text="🛒 Корзина пуста", callback_data="paysec:nop"))
 
@@ -122,8 +122,11 @@ def kb_pay_sections_list(
 
     if total == 0:
         b.row(InlineKeyboardButton(text="Все разделы уже доступны 🎉", callback_data="paysec:nop"))
-        b.row(InlineKeyboardButton(text="◀️ К предметам", callback_data="paysec:subjects"))
-        b.row(InlineKeyboardButton(text="◀️ В оплату", callback_data="paysec:exit"))
+        b.row(InlineKeyboardButton(text="◀️ К предметам", callback_data="paysec:subjects"),
+              InlineKeyboardButton(text="◀️ В оплату", callback_data="paysec:exit"),
+              width=2)
+        b.row(InlineKeyboardButton(text="◀️ В меню", callback_data="paysec:exit_menu"))
+
         return b.as_markup()
 
     start = page * per_page
@@ -143,6 +146,45 @@ def kb_pay_sections_list(
                next_cb=f"paysec:sectpage:{subj_idx}:{page + 1}")
 
     _add_cart_controls(b, cart_count)
+    b.row(InlineKeyboardButton(text="◀️ К предметам", callback_data="paysec:subjects"),
+          InlineKeyboardButton(text="◀️ В оплату", callback_data="paysec:exit"),
+          width=2)
+    b.row(InlineKeyboardButton(text="◀️ В меню", callback_data="paysec:exit_menu"))
+    return b.as_markup()
+
+
+def kb_pay_cart(
+        items: Sequence[tuple[str, str]],
+        page: int = 0,
+        per_page: int = 10,
+        row_width: int = 2,
+):
+    b = InlineKeyboardBuilder()
+    total = len(items)
+
+    if total == 0:
+        b.row(InlineKeyboardButton(text="🛒 Корзина пуста", callback_data="paysec:nop"), width=1)
+        b.row(InlineKeyboardButton(text="◀️ К предметам", callback_data="paysec:subjects"),
+              InlineKeyboardButton(text="◀️ В оплату", callback_data="paysec:exit"),
+              width=2)
+        b.row(InlineKeyboardButton(text="◀️ В меню", callback_data="paysec:exit_menu"))
+        return b.as_markup()
+
+    start = page * per_page
+    end = min(start + per_page, total)
+    page_items = items[start:end]
+
+    buttons: list[InlineKeyboardButton] = []
+    for i, (subj, sec) in enumerate(page_items, start=start):
+        label = f"❌ {sec} — {subj}"
+        buttons.append(InlineKeyboardButton(text=label, callback_data=f"paysec:cartremove:{i}:{page}"))
+    _grid_rows(b, buttons, row_width=row_width)
+
+    last_page = (total - 1) // per_page
+    _add_pager(b, page, last_page, prev_cb=f"paysec:cartpage:{page - 1}", next_cb=f"paysec:cartpage:{page + 1}")
+
+    b.row(InlineKeyboardButton(text=f"✅ Оплатить ({total})", callback_data="paysec:checkout"))
+    b.row(InlineKeyboardButton(text="🧹 Очистить корзину", callback_data="paysec:cartclear"))
     b.row(InlineKeyboardButton(text="◀️ К предметам", callback_data="paysec:subjects"),
           InlineKeyboardButton(text="◀️ В оплату", callback_data="paysec:exit"),
           width=2)
