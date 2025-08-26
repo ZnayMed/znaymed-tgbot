@@ -12,11 +12,13 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand, BotCommandScopeDefault
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
-from tgbot.config import settings
+from tgbot.config import get_settings
 from tgbot.handlers import all_routers
 from tgbot.middleware.api_client import APIClientMiddleware
 from tgbot.middleware.registration_guard import RegistrationGuardMiddleware
 from tgbot.services.api_client import APIGatewayClient
+
+settings = get_settings()
 
 log = logging.getLogger(__name__)
 bot = Bot(

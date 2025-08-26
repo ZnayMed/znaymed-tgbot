@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from pydantic import AnyHttpUrl, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -21,4 +23,6 @@ class Settings(BaseSettings):
     web_port: int = Field(8081, env=["BOT_WEB_PORT", "WEB_PORT"])
 
 
-settings = Settings()
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
