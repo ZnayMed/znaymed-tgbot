@@ -104,7 +104,17 @@ async def main() -> None:
     host = str(getattr(settings, "web_host", "0.0.0.0"))
     port = int(getattr(settings, "web_port", 8081))
     log.info("Starting aiohttp on %s:%s", host, port)
-    web.run_app(app, host=host, port=port)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host=host, port=port)
+    await site.start()
+
+    # держим процесс живым
+    try:
+        await asyncio.Event().wait()
+    finally:
+        await runner.cleanup()
 
 
 if __name__ == "__main__":
