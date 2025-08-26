@@ -11,7 +11,7 @@ _available: Optional[bool] = None  # кэш health-check'а ping()
 def get_redis() -> Redis:
     global _redis
     if _redis is None:
-        url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        url = os.getenv("BOT_REDIS_URL", "redis://localhost:6379/0")
         # decode_responses=True => все ключи/значения/члены множеств — СТРОКИ
         _redis = Redis.from_url(url, encoding="utf-8", decode_responses=True)
     return _redis
