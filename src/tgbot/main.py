@@ -18,7 +18,6 @@ from tgbot.middleware.api_client import APIClientMiddleware
 from tgbot.middleware.registration_guard import RegistrationGuardMiddleware
 from tgbot.services.api_client import APIGatewayClient
 
-
 log = logging.getLogger(__name__)
 bot = Bot(
     token=settings.bot_token,
@@ -44,7 +43,9 @@ async def set_commands():
 
 async def on_startup() -> None:
     await set_commands()
-    webhook_url = urljoin(str(settings.webhook_base), str(settings.webhook_path))
+    webhook_url = urljoin(settings.webhook_base, settings.webhook_path)
+    secret = settings.webhook_secret.strip()
+    await bot.set_webhook(url=webhook_url, secret_token=secret, drop_pending_updates=True)
     await bot.set_webhook(
         url=webhook_url,
         secret_token=str(settings.webhook_secret),

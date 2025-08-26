@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     log_level: str = Field("INFO", env="LOG_LEVEL")
 
     # читаем из BOT_* (и на всякий случай из старых имён)
-    webhook_base: AnyHttpUrl = Field(..., env=["BOT_WEBHOOK_BASE", "WEBHOOK_BASE"])
+    webhook_base: str = Field(..., env=["BOT_WEBHOOK_BASE", "WEBHOOK_BASE"])
     webhook_path: str = Field("/tg-webhook", env=["BOT_WEBHOOK_PATH", "WEBHOOK_PATH"])
     webhook_secret: str = Field(..., env=["BOT_WEBHOOK_SECRET", "WEBHOOK_SECRET"])
     web_host: str = Field("0.0.0.0", env=["BOT_WEB_HOST", "WEB_HOST"])
