@@ -46,13 +46,8 @@ async def set_commands():
 async def on_startup() -> None:
     await set_commands()
     webhook_url = urljoin(settings.webhook_base, settings.webhook_path)
-    secret = settings.webhook_secret.strip()
-    await bot.set_webhook(url=webhook_url, secret_token=secret, drop_pending_updates=True)
-    await bot.set_webhook(
-        url=webhook_url,
-        secret_token=str(settings.webhook_secret),
-        drop_pending_updates=True,
-    )
+    await bot.set_webhook(url=webhook_url, secret_token=settings.webhook_secret, drop_pending_updates=True)
+
     log.info("Webhook set to %s", webhook_url)
     log.info("Bot starting…")
 
@@ -98,7 +93,7 @@ async def main() -> None:
     handler = SimpleRequestHandler(
         dispatcher=dp,
         bot=bot,
-        secret_token=str(settings.webhook_secret),
+        secret_token=str(settings.webhook_secret or None),
     )
     app.router.add_post(str(settings.webhook_path), handler.handle)
 
