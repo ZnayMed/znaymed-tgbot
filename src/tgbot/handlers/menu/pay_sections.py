@@ -315,11 +315,11 @@ async def cb_paysec_nop(cb: CallbackQuery):
 
 
 # === RENDER: CART ===
-async def render_paysec_cart(msg, user_id: int, state: FSMContext, page: int = 0):
+async def render_paysec_cart(msg, user_id: int, api_client: APIGatewayClient, state: FSMContext, page: int = 0):
     data = await state.get_data()
     raw = list(data.get("cart", []))
 
-    decoded = []
+    decoded: list[tuple[str, str]] = []
     for key in raw:
         try:
             subj, sec = key.split(_SEP, 1)
@@ -328,6 +328,25 @@ async def render_paysec_cart(msg, user_id: int, state: FSMContext, page: int = 0
         decoded.append((subj, sec))
 
     decoded.sort(key=lambda x: (x[0].lower(), x[1].lower()))
+
+    total_text: str | None = None
+    if decoded:
+        try:
+            # серверу нужны только названия секций; на всякий случай уберём дубли
+            sections = sorted({sec for _, sec in decoded})
+            resp = await api_client.get_sections_total(user_id, sections)
+            kopeck = int(resp.get("total_kopeck", 0))
+            currency = str(resp.get("currency", "RUB"))
+
+            # простое форматирование RUB: 1234.50 ₽
+            rub = kopeck // 100
+            kop = kopeck % 100
+            curr_symbol = "₽" if currency.upper() in {"RUB", "RUR", "RUBLE", "RUBLES",
+                                                      "RU"} or currency == "₽" else currency
+            total_text = f"{rub}.{kop:02d} {curr_symbol}"
+        except Exception as e:
+            log.exception("Failed to get sections total: %s", e)
+            total_text = None
 
     title = (
         t("pay_cart_title").format(n=len(decoded))
@@ -338,26 +357,26 @@ async def render_paysec_cart(msg, user_id: int, state: FSMContext, page: int = 0
         msg,
         user_id,
         title,
-        kb_pay_cart(decoded, page=page, per_page=4, row_width=1),
+        kb_pay_cart(decoded, page=page, per_page=6, row_width=2, total_text=total_text),
     )
 
 
 # === CALLBACKS: CART ===
 @router.callback_query(F.data == "paysec:cart")
-async def cb_paysec_cart(cb: CallbackQuery, state: FSMContext):
+async def cb_paysec_cart(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
     await cb.answer()
-    await render_paysec_cart(cb.message, cb.from_user.id, state, page=0)
+    await render_paysec_cart(cb.message, cb.from_user.id, api_client, state, page=0)
 
 
 @router.callback_query(F.data.startswith("paysec:cartpage:"))
-async def cb_paysec_cartpage(cb: CallbackQuery, state: FSMContext):
+async def cb_paysec_cartpage(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
     await cb.answer()
     page = int(cb.data.split(":")[-1])
-    await render_paysec_cart(cb.message, cb.from_user.id, state, page=page)
+    await render_paysec_cart(cb.message, cb.from_user.id, api_client, state, page=page)
 
 
 @router.callback_query(F.data.startswith("paysec:cartremove:"))
-async def cb_paysec_cartremove(cb: CallbackQuery, state: FSMContext):
+async def cb_paysec_cartremove(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
     await cb.answer()
     _, _, idx_str, page_str = cb.data.split(":")
     idx, page = int(idx_str), int(page_str)
@@ -384,11 +403,11 @@ async def cb_paysec_cartremove(cb: CallbackQuery, state: FSMContext):
             raw_set.remove(key)
             await state.update_data(cart=list(raw_set))
 
-    await render_paysec_cart(cb.message, cb.from_user.id, state, page=page)
+    await render_paysec_cart(cb.message, cb.from_user.id, api_client, state, page=page)
 
 
 @router.callback_query(F.data == "paysec:cartclear")
-async def cb_paysec_cartclear(cb: CallbackQuery, state: FSMContext):
+async def cb_paysec_cartclear(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
     await cb.answer()
     await state.update_data(cart=[])
-    await render_paysec_cart(cb.message, cb.from_user.id, state, page=0)
+    await render_paysec_cart(cb.message, cb.from_user.id, api_client, state, page=0)

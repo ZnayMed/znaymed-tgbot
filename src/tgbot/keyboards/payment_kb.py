@@ -158,6 +158,7 @@ def kb_pay_cart(
         page: int = 0,
         per_page: int = 10,
         row_width: int = 2,
+        total_text: str | None = None
 ):
     b = InlineKeyboardBuilder()
     total = len(items)
@@ -176,14 +177,18 @@ def kb_pay_cart(
 
     buttons: list[InlineKeyboardButton] = []
     for i, (subj, sec) in enumerate(page_items, start=start):
-        label = f"❌ {sec} — {subj}"
+        label = f"❌ {sec}"
         buttons.append(InlineKeyboardButton(text=label, callback_data=f"paysec:cartremove:{i}:{page}"))
     _grid_rows(b, buttons, row_width=row_width)
 
     last_page = (total - 1) // per_page
     _add_pager(b, page, last_page, prev_cb=f"paysec:cartpage:{page - 1}", next_cb=f"paysec:cartpage:{page + 1}")
 
-    b.row(InlineKeyboardButton(text=f"✅ Оплатить ({total})", callback_data="paysec:checkout"))
+    checkout_label = f"✅ Оплатить ({total})"
+    if total_text:
+        checkout_label = f"{checkout_label} — {total_text}"
+
+    b.row(InlineKeyboardButton(text=checkout_label, callback_data="paysec:checkout"))
     b.row(InlineKeyboardButton(text="🧹 Очистить корзину", callback_data="paysec:cartclear"))
     b.row(InlineKeyboardButton(text="◀️ К предметам", callback_data="paysec:subjects"),
           InlineKeyboardButton(text="◀️ В оплату", callback_data="paysec:exit"),

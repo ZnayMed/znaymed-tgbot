@@ -28,3 +28,7 @@ class APIGatewayClient(httpx.AsyncClient):
     async def get_section_topics(self, section_title: str) -> dict:
         body = {"section_title": section_title}
         return await self.request_json("POST", "/sectiontopics", json=body)
+
+    async def get_sections_total(self, tg_user_id: int, sections: list[str]) -> dict:
+        body = {"tgid": str(tg_user_id), "sections": sections}
+        return await self.request_json("POST", "/sections/total", json=body)
