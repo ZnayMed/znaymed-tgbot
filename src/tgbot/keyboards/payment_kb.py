@@ -68,6 +68,17 @@ def kb_pay_root(subjects: Sequence[str], page: int = 0, per_page: int = 8, row_w
     return b.as_markup()
 
 
+def kb_payment_link(payment_url: str):
+    b = InlineKeyboardBuilder()
+    b.row(InlineKeyboardButton(text="💳 Перейти к оплате", url=payment_url), width=1)
+    b.row(
+        InlineKeyboardButton(text="◀️ В оплату", callback_data="paysec:exit"),
+        InlineKeyboardButton(text="◀️ В меню", callback_data="menu:root"),
+        width=2,
+    )
+    return b.as_markup()
+
+
 def kb_pay_sections_subjects(
         subjects: Sequence[str],
         page: int = 0,

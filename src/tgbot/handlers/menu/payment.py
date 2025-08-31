@@ -4,13 +4,21 @@ from aiogram.types import CallbackQuery
 
 from tgbot.lexicon import t
 from tgbot.services.api_client import APIGatewayClient
-from tgbot.keyboards.payment_kb import kb_pay_root
+from tgbot.keyboards.payment_kb import kb_pay_root, kb_payment_link
 from .utils import edit_or_respawn
 
 router = Router(name="menu.payment")
 log = logging.getLogger(__name__)
 
 PER_PAGE_PAY = 8
+
+
+def _format_money(kopeck: int, currency: str) -> str:
+    rub = max(0, int(kopeck)) // 100
+    kop = max(0, int(kopeck)) % 100
+    curr = currency or "RUB"
+    curr_symbol = "₽" if curr.upper() in {"RUB", "RUR", "RUBLE", "RU"} or curr == "₽" else curr
+    return f"{rub}.{kop:02d} {curr_symbol}"
 
 
 async def render_pay_root(msg, user_id: int, api: APIGatewayClient, page: int = 0):
@@ -21,6 +29,40 @@ async def render_pay_root(msg, user_id: int, api: APIGatewayClient, page: int = 
         return await edit_or_respawn(msg, user_id, t("pay_error"), kb_pay_root([], page=0))
     return await edit_or_respawn(msg, user_id, t("pay_title"),
                                  kb_pay_root(subjects, page=page, per_page=PER_PAGE_PAY, row_width=1))
+
+
+async def render_payment_screen(
+        msg,
+        user_id: int,
+        *,
+        payment_id: str,
+        payment_url: str,
+        total_kopeck: int,
+        currency: str,
+        missing_sections: list[str] | None = None,
+        status: str | None = None,
+):
+    amount_text = _format_money(total_kopeck, currency)
+
+    lines = [
+        t("payment_screen_title"),
+        t("payment_screen_amount").format(amount=amount_text),
+    ]
+    if missing_sections is not None:
+        lines.append(t("payment_screen_positions").format(n=len(missing_sections)))
+    if status:
+        lines.append(t("payment_screen_status").format(status=status))
+    lines.append("")
+    lines.append(t("payment_screen_cta"))
+
+    text = "\n".join(lines)
+
+    return await edit_or_respawn(
+        msg,
+        user_id,
+        text,
+        kb_payment_link(payment_url),
+    )
 
 
 @router.callback_query(F.data == "menu:pay")

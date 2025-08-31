@@ -81,3 +81,18 @@ LEXICON_RU.update({
     "pay_cart_cleared": "Корзина очищена.",
     "pay_checkout_soon": "Скоро добавим оплату за {n} раздел(а/ов).",
 })
+
+LEXICON_RU.update({
+    # экран оплаты
+    "payment_screen_title": "🧾 <b>Счёт на оплату</b>",
+    "payment_screen_amount": "Сумма: <b>{amount}</b>",
+    "payment_screen_positions": "К оплате позиций: <b>{n}</b>",
+    "payment_screen_status": "Статус: <i>{status}</i>",
+    "payment_screen_cta": "Нажмите кнопку ниже, чтобы перейти к оплате.",
+
+    # оплата — алерты/ошибки
+    "pay_create_failed": "Не удалось создать платёж. Повторите позже.",
+    "pay_nothing_to_buy": "Все выбранные разделы уже доступны — оплачивать нечего.",
+    "pay_missing_url": "Ссылка на оплату не получена.",
+})
+

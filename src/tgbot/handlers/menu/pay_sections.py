@@ -275,15 +275,59 @@ async def cb_paysec_toggle(cb: CallbackQuery, api_client: APIGatewayClient, stat
 
 # === CALLBACKS: CHECKOUT ===
 @router.callback_query(F.data == "paysec:checkout")
-async def cb_paysec_checkout(cb: CallbackQuery, state: FSMContext):
+async def cb_paysec_checkout(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
     await cb.answer()
-    n = len(await _get_cart(state))
 
-    if n <= 0:
-        await cb.answer("Корзина пуста.", show_alert=True)
+    data = await state.get_data()
+    raw = list(data.get("cart", []))
+
+    decoded: list[tuple[str, str]] = []
+    for key in raw:
+        try:
+            subj, sec = key.split(_SEP, 1)
+        except Exception:
+            continue
+        decoded.append((subj, sec))
+
+    if not decoded:
+        await cb.answer(t("pay_cart_empty"), show_alert=True)
         return
 
-    await cb.answer(t("pay_checkout_soon").format(n=n), show_alert=True)
+    sections = sorted({sec for _, sec in decoded})
+
+    try:
+        resp = await api_client.create_payment_sections(cb.from_user.id, sections)
+    except Exception as e:
+        log.exception("Create payment failed: %s", e)
+        await cb.answer(t("pay_create_failed"), show_alert=True)
+        return
+
+    missing = list(resp.get("missing_sections") or [])
+    total = int(resp.get("total_kopeck", 0))
+    if total <= 0 or len(missing) == 0:
+        await cb.answer(t("pay_nothing_to_buy"), show_alert=True)
+        return
+
+    payment_id = str(resp.get("payment_id", ""))
+    payment_url = str(resp.get("payment_url", ""))
+    currency = str(resp.get("currency", "RUB"))
+    status = str(resp.get("status", ""))
+
+    if not payment_url:
+        await cb.answer(t("pay_missing_url"), show_alert=True)
+        return
+
+    from .payment import render_payment_screen
+    await render_payment_screen(
+        cb.message,
+        cb.from_user.id,
+        payment_id=payment_id,
+        payment_url=payment_url,
+        total_kopeck=total,
+        currency=currency,
+        missing_sections=missing,
+        status=status,
+    )
 
 
 # === CALLBACKS: NAVIGATION ===
