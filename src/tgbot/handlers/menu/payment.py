@@ -40,18 +40,19 @@ async def render_payment_screen(
         total_kopeck: int,
         currency: str,
         missing_sections: list[str] | None = None,
-        status: str | None = None,
+        show_amount=False
 ):
     amount_text = _format_money(total_kopeck, currency)
 
     lines = [
         t("payment_screen_title"),
-        t("payment_screen_amount").format(amount=amount_text),
     ]
+
+    if show_amount and (total_kopeck or 0) > 0:
+        amount_text = _format_money(total_kopeck, currency)
+        lines.append(t("payment_screen_amount").format(amount=amount_text))
     if missing_sections is not None:
         lines.append(t("payment_screen_positions").format(n=len(missing_sections)))
-    if status:
-        lines.append(t("payment_screen_status").format(status=status))
     lines.append("")
     lines.append(t("payment_screen_cta"))
 
@@ -79,12 +80,102 @@ async def cb_pay_page(cb: CallbackQuery, api_client: APIGatewayClient):
 
 
 @router.callback_query(F.data == "pay:buy:all")
-async def cb_pay_buy_all(cb: CallbackQuery):
-    # Заглушка оформления
-    await cb.answer(t("pay_soon"), show_alert=True)
+async def cb_pay_buy_all(cb: CallbackQuery, api_client: APIGatewayClient):
+    await cb.answer()
+    try:
+        subjects = await api_client.get_subjects()
+    except Exception as e:
+        log.exception("get_subjects failed: %s", e)
+        await cb.answer(t("api_error"), show_alert=True)
+        return
+
+    if not subjects:
+        await cb.answer(t("pay_nothing_to_buy"), show_alert=True)
+        return
+
+    try:
+        resp = await api_client.create_payment_subjects(cb.from_user.id, subjects)
+    except Exception as e:
+        log.exception("create_payment_missing_sections failed: %s", e)
+        await cb.answer(t("pay_create_failed"), show_alert=True)
+        return
+
+    sections = list(resp.get("sections") or [])
+    if not sections:
+        await cb.answer(t("pay_nothing_to_buy"), show_alert=True)
+        return
+
+    payment_id = str(resp.get("payment_id", ""))
+    payment_url = str(resp.get("payment_url", ""))
+    status = str(resp.get("status", ""))
+
+    if not payment_url:
+        await cb.answer(t("pay_missing_url"), show_alert=True)
+        return
+
+    await render_payment_screen(
+        cb.message,
+        cb.from_user.id,
+        payment_id=payment_id,
+        payment_url=payment_url,
+        total_kopeck=0,  # суммы пока нет
+        currency="",  # валюты пока нет
+        missing_sections=sections,
+        show_amount=False,  # <-- скрываем сумму
+    )
 
 
 @router.callback_query(F.data.startswith("pay:subject:"))
 async def cb_pay_buy_subject(cb: CallbackQuery, api_client: APIGatewayClient):
-    # Заглушка оформления покупки предмета
-    await cb.answer(t("pay_soon"), show_alert=True)
+    await cb.answer()
+    # индекс предмета — глобальный (как в kb_pay_root)
+    try:
+        idx = int(cb.data.split(":")[-1])
+    except Exception:
+        await cb.answer(t("api_error"), show_alert=True)
+        return
+
+    try:
+        subjects = await api_client.get_subjects()
+    except Exception as e:
+        log.exception("get_subjects failed: %s", e)
+        await cb.answer(t("api_error"), show_alert=True)
+        return
+
+    if not (0 <= idx < len(subjects)):
+        # список изменился; вернёмся на экран оплаты
+        await render_pay_root(cb.message, cb.from_user.id, api_client, page=0)
+        return
+
+    subject = subjects[idx]
+
+    try:
+        resp = await api_client.create_payment_subjects(cb.from_user.id, [subject])
+    except Exception as e:
+        log.exception("create_payment_missing_sections failed: %s", e)
+        await cb.answer(t("pay_create_failed"), show_alert=True)
+        return
+
+    sections = list(resp.get("sections") or [])
+    if not sections:
+        await cb.answer(t("pay_nothing_to_buy"), show_alert=True)
+        return
+
+    payment_id = str(resp.get("payment_id", ""))
+    payment_url = str(resp.get("payment_url", ""))
+    status = str(resp.get("status", ""))
+
+    if not payment_url:
+        await cb.answer(t("pay_missing_url"), show_alert=True)
+        return
+
+    await render_payment_screen(
+        cb.message,
+        cb.from_user.id,
+        payment_id=payment_id,
+        payment_url=payment_url,
+        total_kopeck=0,
+        currency="",
+        missing_sections=sections,
+        show_amount=False,  # <-- скрываем сумму
+    )

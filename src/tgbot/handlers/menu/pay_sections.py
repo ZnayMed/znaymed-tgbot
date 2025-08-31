@@ -12,6 +12,7 @@ from tgbot.keyboards.payment_kb import (
     kb_pay_cart,
 )
 from .utils import edit_or_respawn
+from ...utils.safe_answer import safe_answer
 
 # === ROUTER ===
 router = Router(name="menu.pay.sections")
@@ -326,7 +327,6 @@ async def cb_paysec_checkout(cb: CallbackQuery, api_client: APIGatewayClient, st
         total_kopeck=total,
         currency=currency,
         missing_sections=missing,
-        status=status,
     )
 
 
@@ -421,7 +421,7 @@ async def cb_paysec_cartpage(cb: CallbackQuery, api_client: APIGatewayClient, st
 
 @router.callback_query(F.data.startswith("paysec:cartremove:"))
 async def cb_paysec_cartremove(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
-    await cb.answer()
+    await safe_answer(cb)
     _, _, idx_str, page_str = cb.data.split(":")
     idx, page = int(idx_str), int(page_str)
 

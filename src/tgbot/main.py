@@ -13,6 +13,7 @@ from tgbot.config import settings
 from tgbot.handlers import all_routers
 from tgbot.middleware.api_client import APIClientMiddleware
 from tgbot.middleware.registration_guard import RegistrationGuardMiddleware
+from tgbot.middleware.auto_answer import AutoAnswerMiddleware
 from tgbot.services.api_client import APIGatewayClient
 
 bot = Bot(
@@ -53,6 +54,8 @@ async def _close_api_client():
 
 
 async def main() -> None:
+    dp.callback_query.middleware.register(AutoAnswerMiddleware)
+
     dp.message.middleware.register(APIClientMiddleware(api_client))
     dp.callback_query.middleware.register(APIClientMiddleware(api_client))
     dp.message.middleware.register(RegistrationGuardMiddleware(api_client))

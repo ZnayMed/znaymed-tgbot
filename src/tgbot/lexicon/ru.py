@@ -87,7 +87,6 @@ LEXICON_RU.update({
     "payment_screen_title": "🧾 <b>Счёт на оплату</b>",
     "payment_screen_amount": "Сумма: <b>{amount}</b>",
     "payment_screen_positions": "К оплате позиций: <b>{n}</b>",
-    "payment_screen_status": "Статус: <i>{status}</i>",
     "payment_screen_cta": "Нажмите кнопку ниже, чтобы перейти к оплате.",
 
     # оплата — алерты/ошибки
