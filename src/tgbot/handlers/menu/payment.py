@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
@@ -21,14 +22,54 @@ def _format_money(kopeck: int, currency: str) -> str:
     return f"{rub}.{kop:02d} {curr_symbol}"
 
 
+async def _fetch_subject_total(api: APIGatewayClient, user_id: int, subject: str, sem: asyncio.Semaphore):
+    async with sem:
+        try:
+            data = await api.get_subject_total(user_id, subject)
+            return subject, int(data.get("total_kopeck", 0)), str(data.get("currency", "RUB"))
+        except Exception:
+            return subject, None, None
+
+
 async def render_pay_root(msg, user_id: int, api: APIGatewayClient, page: int = 0):
     try:
         subjects = await api.get_subjects()
     except Exception:
         # в случае ошибки всё равно покажем шапку и кнопку "в меню"
         return await edit_or_respawn(msg, user_id, t("pay_error"), kb_pay_root([], page=0))
-    return await edit_or_respawn(msg, user_id, t("pay_title"),
-                                 kb_pay_root(subjects, page=page, per_page=PER_PAGE_PAY, row_width=1))
+
+        # --- NEW: считаем цены для каждого предмета и итог "Все предметы" ---
+    subject_price_map: dict[str, str] = {}
+    all_total_kopeck = 0
+    all_currency = "RUB"
+
+    if subjects:
+        # лимит одновременных запросов, чтобы не заспамить бэкенд
+        sem = asyncio.Semaphore(5)
+        tasks = [asyncio.create_task(_fetch_subject_total(api, user_id, s, sem)) for s in subjects]
+        results = await asyncio.gather(*tasks)
+
+        for subj, kopeck, curr in results:
+            if kopeck is not None:
+                subject_price_map[subj] = _format_money(kopeck, curr or "RUB")
+                all_total_kopeck += kopeck
+                all_currency = curr or all_currency
+
+    all_btn_text = f"Все предметы — {_format_money(all_total_kopeck, all_currency)}" if subjects else "Все предметы"
+
+    return await edit_or_respawn(
+        msg,
+        user_id,
+        t("pay_title"),
+        kb_pay_root(
+            subjects,
+            page=page,
+            per_page=PER_PAGE_PAY,
+            row_width=1,
+            all_btn_text=all_btn_text,
+            subject_price_map=subject_price_map,
+        ),
+    )
 
 
 async def render_payment_screen(

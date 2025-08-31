@@ -1,10 +1,14 @@
-from typing import Sequence, Set, Callable
+from typing import Sequence, Set, Callable, Optional, Dict
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 # Заглушки цен
 ALL_SUBJECTS_PRICE = "999 ₽"
 PER_SUBJECT_PRICE = "249 ₽"
+
+
+def _truncate_title(title: str, limit: int = 40) -> str:
+    return title if len(title) <= limit else (title[:limit] + "…")
 
 
 def _label_subject_with_price(title: str) -> str:
@@ -40,23 +44,27 @@ def _grid_rows(builder: InlineKeyboardBuilder, buttons: list[InlineKeyboardButto
         builder.row(*row)
 
 
-def kb_pay_root(subjects: Sequence[str], page: int = 0, per_page: int = 8, row_width: int = 2):
+def kb_pay_root(subjects: Sequence[str], page: int = 0, per_page: int = 8, row_width: int = 2, *,
+                all_btn_text: Optional[str] = None,
+                subject_price_map: Optional[Dict[str, str]] = None, ):
     b = InlineKeyboardBuilder()
 
-    # 1) Все предметы
-    b.row(InlineKeyboardButton(text=f"Все предметы — {ALL_SUBJECTS_PRICE}", callback_data="pay:buy:all"))
+    # 1) «Все предметы»
+    top_text = all_btn_text or "Все предметы"
+    b.row(InlineKeyboardButton(text=top_text, callback_data="pay:buy:all"))
 
-    # 2) Предметы с ценой
+    # 2) Предметы с ценами (если есть)
     total = len(subjects)
     if total > 0:
         start = page * per_page
         end = min(start + per_page, total)
         items = subjects[start:end]
 
-        buttons = [
-            InlineKeyboardButton(text=_label_subject_with_price(title), callback_data=f"pay:subject:{i}")
-            for i, title in enumerate(items, start=start)
-        ]
+        buttons: list[InlineKeyboardButton] = []
+        for i, title in enumerate(items, start=start):
+            price = (subject_price_map or {}).get(title)
+            label = _truncate_title(title) if not price else f"{_truncate_title(title)} — {price}"
+            buttons.append(InlineKeyboardButton(text=label, callback_data=f"pay:subject:{i}"))
         _grid_rows(b, buttons, row_width=row_width)
 
         last_page = (total - 1) // per_page
