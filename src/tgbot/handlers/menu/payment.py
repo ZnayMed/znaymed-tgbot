@@ -53,6 +53,7 @@ async def render_payment_screen(
         lines.append(t("payment_screen_amount").format(amount=amount_text))
     if missing_sections is not None:
         lines.append(t("payment_screen_positions").format(n=len(missing_sections)))
+        [lines.append(section) for section in missing_sections]
     lines.append("")
     lines.append(t("payment_screen_cta"))
 
@@ -163,7 +164,6 @@ async def cb_pay_buy_subject(cb: CallbackQuery, api_client: APIGatewayClient):
 
     payment_id = str(resp.get("payment_id", ""))
     payment_url = str(resp.get("payment_url", ""))
-    status = str(resp.get("status", ""))
 
     if not payment_url:
         await cb.answer(t("pay_missing_url"), show_alert=True)
