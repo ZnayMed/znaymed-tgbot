@@ -1,4 +1,3 @@
-# tgbot/utils/prompt_cleaner.py
 import contextlib
 import logging
 from aiogram import Bot
