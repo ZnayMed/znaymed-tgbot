@@ -2,7 +2,7 @@ import os
 from typing import Optional
 
 from redis.asyncio import Redis
-from redis.exceptions import ConnectionError
+from redis.exceptions import ConnectionError, ReadOnlyError
 
 _redis: Optional[Redis] = None
 _available: Optional[bool] = None  # кэш health-check'а ping()
@@ -24,6 +24,11 @@ async def is_redis_available() -> bool:
     r = get_redis()
     try:
         await r.ping()
+        try:
+            await r.set("__probe_write__", "1", ex=3)
+        except ReadOnlyError:
+            _available = False
+            return _available
         _available = True
     except ConnectionError:
         _available = False
