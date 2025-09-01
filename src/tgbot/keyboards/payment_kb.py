@@ -44,14 +44,21 @@ def _grid_rows(builder: InlineKeyboardBuilder, buttons: list[InlineKeyboardButto
         builder.row(*row)
 
 
-def kb_pay_root(subjects: Sequence[str], page: int = 0, per_page: int = 8, row_width: int = 2, *,
-                all_btn_text: Optional[str] = None,
-                subject_price_map: Optional[Dict[str, str]] = None, ):
+def kb_pay_root(
+        subjects: Sequence[str],
+        page: int = 0,
+        per_page: int = 8,
+        row_width: int = 2,
+        *,
+        all_btn_text: Optional[str] = None,
+        subject_price_map: Optional[Dict[str, str]] = None,
+        payable_subjects: Optional[set[str]] = None,
+):
     b = InlineKeyboardBuilder()
 
-    # 1) «Все предметы»
-    top_text = all_btn_text or "Все предметы"
-    b.row(InlineKeyboardButton(text=top_text, callback_data="pay:buy:all"))
+    # 1) «Все предметы» — только если есть цена > 0
+    if all_btn_text:
+        b.row(InlineKeyboardButton(text=all_btn_text, callback_data="pay:buy:all"))
 
     # 2) Предметы с ценами (если есть)
     total = len(subjects)
@@ -62,6 +69,8 @@ def kb_pay_root(subjects: Sequence[str], page: int = 0, per_page: int = 8, row_w
 
         buttons: list[InlineKeyboardButton] = []
         for i, title in enumerate(items, start=start):
+            if payable_subjects is not None and title not in payable_subjects:
+                continue
             price = (subject_price_map or {}).get(title)
             label = _truncate_title(title) if not price else f"{_truncate_title(title)} — {price}"
             buttons.append(InlineKeyboardButton(text=label, callback_data=f"pay:subject:{i}"))
@@ -70,7 +79,6 @@ def kb_pay_root(subjects: Sequence[str], page: int = 0, per_page: int = 8, row_w
         last_page = (total - 1) // per_page
         _add_pager(b, page, last_page, prev_cb=f"pay:page:{page - 1}", next_cb=f"pay:page:{page + 1}")
 
-    # 3) Конкретные разделы + назад
     b.row(InlineKeyboardButton(text="📚 Конкретные разделы", callback_data="pay:sections"))
     b.row(InlineKeyboardButton(text="◀️ В меню", callback_data="menu:root"))
     return b.as_markup()

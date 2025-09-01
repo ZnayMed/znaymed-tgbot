@@ -38,24 +38,31 @@ async def render_pay_root(msg, user_id: int, api: APIGatewayClient, page: int = 
         # в случае ошибки всё равно покажем шапку и кнопку "в меню"
         return await edit_or_respawn(msg, user_id, t("pay_error"), kb_pay_root([], page=0))
 
-        # --- NEW: считаем цены для каждого предмета и итог "Все предметы" ---
+    # считаем цены для каждого предмета и общий итог
     subject_price_map: dict[str, str] = {}
+    payable_subjects: set[str] = set()
     all_total_kopeck = 0
     all_currency = "RUB"
 
     if subjects:
-        # лимит одновременных запросов, чтобы не заспамить бэкенд
         sem = asyncio.Semaphore(5)
         tasks = [asyncio.create_task(_fetch_subject_total(api, user_id, s, sem)) for s in subjects]
         results = await asyncio.gather(*tasks)
 
         for subj, kopeck, curr in results:
-            if kopeck is not None:
+            if kopeck is None:
+                continue
+            all_total_kopeck += kopeck
+            all_currency = curr or all_currency
+            if kopeck > 0:
                 subject_price_map[subj] = _format_money(kopeck, curr or "RUB")
-                all_total_kopeck += kopeck
-                all_currency = curr or all_currency
+                payable_subjects.add(subj)
 
-    all_btn_text = f"Все предметы — {_format_money(all_total_kopeck, all_currency)}" if subjects else "Все предметы"
+    # кнопку "Все предметы" показываем только если есть что покупать
+    all_btn_text = (
+        f"Все предметы — {_format_money(all_total_kopeck, all_currency)}"
+        if all_total_kopeck > 0 else None
+    )
 
     return await edit_or_respawn(
         msg,
@@ -67,7 +74,8 @@ async def render_pay_root(msg, user_id: int, api: APIGatewayClient, page: int = 
             per_page=PER_PAGE_PAY,
             row_width=1,
             all_btn_text=all_btn_text,
-            subject_price_map=subject_price_map,
+            subject_price_map=subject_price_map,  # подписи цен
+            payable_subjects=payable_subjects,  # показываем только эти предметы
         ),
     )
 
