@@ -3,7 +3,7 @@ import os
 from typing import List
 from redis.exceptions import ReadOnlyError
 
-PROMPT_TTL = int(os.getenv("PROMPT_TTL_SECONDS"), "")
+PROMPT_TTL = int(os.getenv("PROMPT_TTL_SECONDS", "172800"))
 
 
 def _kinds_key(user_id: int) -> str:
