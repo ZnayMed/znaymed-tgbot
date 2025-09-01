@@ -71,7 +71,7 @@ def kb_sections(sections: list[dict], subj_idx: int, page: int = 0, per_page: in
         title = s.get("title", "") or ""
         acc = bool(s.get("accessible"))
         text = _shorten(title) if acc else f"🔒 {_shorten(title)}"
-        cb = f"sect:open:{subj_idx}:{i}" if acc else f"sect:locked:{subj_idx}:{i}"
+        cb = f"sect:open:{subj_idx}:{i}" if acc else f"menu:pay"
         buttons.append(InlineKeyboardButton(text=text, callback_data=cb))
     _grid_rows(b, buttons, row_width=row_width)
 
@@ -144,4 +144,6 @@ def kb_topic_detail(has_video: bool, mindmap_url: str | None, subj_idx: int, sec
         InlineKeyboardButton(text="◀️ К разделам", callback_data=f"sect:back:{subj_idx}"),
         width=2
     )
+    b.row(InlineKeyboardButton(text="◀️ В меню", callback_data="paysec:exit_menu"))
+
     return b.as_markup()
