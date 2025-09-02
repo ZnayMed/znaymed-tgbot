@@ -14,7 +14,8 @@ async def send_single_menu(bot, chat_id: int, user_id: int, text: str, reply_mar
 async def edit_or_respawn(msg, user_id: int, text: str, reply_markup):
     try:
         return await msg.edit_text(text, reply_markup=reply_markup, parse_mode="HTML")
-    except Exception:
+    except Exception as e:
         with contextlib.suppress(Exception):
+            print((getattr(e, "message", "") or str(e)).lower())
             await msg.delete()
         return await send_single_menu(msg.bot, msg.chat.id, user_id, text, reply_markup)
