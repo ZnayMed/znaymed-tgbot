@@ -1,1 +1,3 @@
 from .api_client import APIClientMiddleware
+from .auto_answer import AutoAnswerMiddleware
+from .registration_guard import RegistrationGuardMiddleware
