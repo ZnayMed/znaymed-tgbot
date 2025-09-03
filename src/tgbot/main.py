@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 
 from aiohttp import web
 from aiogram import Bot, Dispatcher
@@ -10,18 +11,26 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand, BotCommandScopeDefault
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
-from tgbot.config import settings  # <-- твой Settings
+from tgbot.config import settings
 from tgbot.handlers import all_routers
 from tgbot.middleware.api_client import APIClientMiddleware
 from tgbot.middleware.registration_guard import RegistrationGuardMiddleware
 from tgbot.middleware.auto_answer import AutoAnswerMiddleware
 from tgbot.services.api_client import APIGatewayClient
 
+# === Конфиг из env/настроек ===
+BOT_WEB_HOST = os.getenv("BOT_WEB_HOST", "0.0.0.0")
+BOT_WEB_PORT = int(os.getenv("BOT_WEB_PORT", "9000"))
+BOT_WEBHOOK_PATH = os.getenv("BOT_WEBHOOK_PATH", "/tg/webhook")
+BOT_WEBHOOK_BASE = os.getenv("BOT_WEBHOOK_BASE", "https://znaymed.ru").rstrip("/")
+BOT_WEBHOOK_SECRET = os.getenv("BOT_WEBHOOK_SECRET")  # обязателен
+
+PUBLIC_WEBHOOK_URL = f"{BOT_WEBHOOK_BASE}{BOT_WEBHOOK_PATH}"
+
 bot = Bot(
     token=settings.bot_token,
     default=DefaultBotProperties(parse_mode="HTML"),
 )
-
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
@@ -57,6 +66,7 @@ async def _close_api_client():
 
 
 def build_app() -> web.Application:
+    # middlewares/routers — как в polling-версии
     dp.callback_query.middleware.register(AutoAnswerMiddleware())
     dp.message.middleware.register(APIClientMiddleware(api_client))
     dp.callback_query.middleware.register(APIClientMiddleware(api_client))
@@ -69,34 +79,26 @@ def build_app() -> web.Application:
 
     app = web.Application()
 
-    # Проверка секрета: если пусто — не проверяем (локалка/тесты)
-    secret_token = settings.webhook_secret or None
-
-    # Регистрируем POST-роут вебхука
+    # Хендлер вебхука с проверкой секретного токена из заголовка
+    # 'X-Telegram-Bot-Api-Secret-Token'
     SimpleRequestHandler(
         dispatcher=dp,
         bot=bot,
-        secret_token=secret_token,
-    ).register(app, path=settings.webhook_path)
+        secret_token=BOT_WEBHOOK_SECRET,
+    ).register(app, path=BOT_WEBHOOK_PATH)
 
-    # (опционально) health-check для удобства
-    async def health(_req: web.Request):
-        return web.Response(text="ok")
-
-    app.router.add_get("/health", health)
-
+    # При старте приложения — ставим вебхук у Telegram
     async def _app_on_startup(_app: web.Application):
-        # Чистим и выставляем вебхук на публичный URL
-        public_url = f"{settings.webhook_base.rstrip('/')}{settings.webhook_path}"
         await bot.delete_webhook(drop_pending_updates=True)
         await bot.set_webhook(
-            url=public_url,
-            secret_token=secret_token,  # None — без секрета
+            url=PUBLIC_WEBHOOK_URL,
+            secret_token=BOT_WEBHOOK_SECRET,
             allowed_updates=["message", "callback_query", "inline_query", "chat_member"],
             drop_pending_updates=True,
         )
-        log.info("Webhook set to %s", public_url)
+        log.info("Webhook set to %s", PUBLIC_WEBHOOK_URL)
 
+    # При остановке — удаляем вебхук (опционально)
     async def _app_on_shutdown(_app: web.Application):
         try:
             await bot.delete_webhook(drop_pending_updates=False)
@@ -106,7 +108,7 @@ def build_app() -> web.Application:
     app.on_startup.append(_app_on_startup)
     app.on_shutdown.append(_app_on_shutdown)
 
-    # Активируем dp.startup/shutdown хуки
+    # Привязываем DP к приложению (активирует dp.startup/shutdown)
     setup_application(app, dp, bot=bot)
     return app
 
@@ -115,12 +117,11 @@ async def main() -> None:
     app = build_app()
     runner = web.AppRunner(app, access_log=None)
     await runner.setup()
-    site = web.TCPSite(runner, host=settings.web_host, port=settings.web_port)
+    site = web.TCPSite(runner, host=BOT_WEB_HOST, port=BOT_WEB_PORT)
     await site.start()
-    log.info(
-        "Webhook server listening on http://%s:%s%s",
-        settings.web_host, settings.web_port, settings.webhook_path,
-    )
+    log.info("Webhook server listening on http://%s:%s%s", BOT_WEB_HOST, BOT_WEB_PORT, BOT_WEBHOOK_PATH)
+
+    # Блокируемся, пока не SIGTERM
     while True:
         await asyncio.sleep(3600)
 
