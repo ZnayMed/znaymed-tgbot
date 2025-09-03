@@ -1,5 +1,8 @@
+import asyncio
+import contextlib
 import logging
 from aiogram import Router, F
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -238,8 +241,14 @@ async def cb_paysec_open_subject(cb: CallbackQuery, api_client: APIGatewayClient
         # t("pay_subject_all_bought").format(subject=subject)
         await cb.answer(t("pay_sections_empty"), show_alert=True)
 
-        page = subj_idx // PER_PAGE_SUBJ
-        return await render_paysec_subjects(cb.message, cb.from_user.id, api_client, page=page, state=state)
+        async def _later():
+            await asyncio.sleep(0.5)
+            page = subj_idx // PER_PAGE_SUBJ
+            with contextlib.suppress(TelegramBadRequest):
+                await render_paysec_subjects(cb.message, cb.from_user.id, api_client, page=page, state=state)
+
+        asyncio.create_task(_later())
+        return
 
     await cb.answer()
     await render_paysec_sections(cb.message, cb.from_user.id, api_client, subj_idx=subj_idx, page=0, state=state)
