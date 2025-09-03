@@ -150,9 +150,8 @@ def kb_pay_sections_list(
     if total == 0:
         b.row(InlineKeyboardButton(text="Все разделы уже доступны 🎉", callback_data="paysec:nop"))
         b.row(InlineKeyboardButton(text="◀️ К предметам", callback_data="paysec:subjects"),
-              InlineKeyboardButton(text="◀️ В оплату", callback_data="paysec:exit"),
+              InlineKeyboardButton(text="◀️ В меню", callback_data="paysec:exit_menu"),
               width=2)
-        b.row(InlineKeyboardButton(text="◀️ В меню", callback_data="paysec:exit_menu"))
 
         return b.as_markup()
 
@@ -174,9 +173,8 @@ def kb_pay_sections_list(
 
     _add_cart_controls(b, cart_count)
     b.row(InlineKeyboardButton(text="◀️ К предметам", callback_data="paysec:subjects"),
-          InlineKeyboardButton(text="◀️ В оплату", callback_data="paysec:exit"),
+          InlineKeyboardButton(text="◀️ В меню", callback_data="paysec:exit_menu"),
           width=2)
-    b.row(InlineKeyboardButton(text="◀️ В меню", callback_data="paysec:exit_menu"))
     return b.as_markup()
 
 
@@ -193,9 +191,8 @@ def kb_pay_cart(
     if total == 0:
         b.row(InlineKeyboardButton(text="🛒 Корзина пуста", callback_data="paysec:nop"), width=1)
         b.row(InlineKeyboardButton(text="◀️ К предметам", callback_data="paysec:subjects"),
-              InlineKeyboardButton(text="◀️ В оплату", callback_data="paysec:exit"),
+              InlineKeyboardButton(text="◀️ В меню", callback_data="paysec:exit_menu"),
               width=2)
-        b.row(InlineKeyboardButton(text="◀️ В меню", callback_data="paysec:exit_menu"))
         return b.as_markup()
 
     start = page * per_page
@@ -218,7 +215,6 @@ def kb_pay_cart(
     b.row(InlineKeyboardButton(text=checkout_label, callback_data="paysec:checkout"))
     b.row(InlineKeyboardButton(text="🧹 Очистить корзину", callback_data="paysec:cartclear"))
     b.row(InlineKeyboardButton(text="◀️ К предметам", callback_data="paysec:subjects"),
-          InlineKeyboardButton(text="◀️ В оплату", callback_data="paysec:exit"),
+          InlineKeyboardButton(text="◀️ В меню", callback_data="paysec:exit_menu"),
           width=2)
-    b.row(InlineKeyboardButton(text="◀️ В меню", callback_data="paysec:exit_menu"))
     return b.as_markup()

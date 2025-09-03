@@ -141,9 +141,8 @@ def kb_topic_detail(has_video: bool, mindmap_url: str | None, subj_idx: int, sec
 
     b.row(
         InlineKeyboardButton(text="◀️ К темам", callback_data=f"topics:page:{subj_idx}:{sect_idx}:{back_page}"),
-        InlineKeyboardButton(text="◀️ К разделам", callback_data=f"sect:back:{subj_idx}"),
+        InlineKeyboardButton(text="◀️ В меню", callback_data="paysec:exit_menu"),
         width=2
     )
-    b.row(InlineKeyboardButton(text="◀️ В меню", callback_data="paysec:exit_menu"))
 
     return b.as_markup()

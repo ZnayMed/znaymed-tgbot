@@ -229,9 +229,17 @@ async def cb_paysec_open_subject(cb: CallbackQuery, api_client: APIGatewayClient
 
     await _set_current_subject(state, subj_idx, subject)
 
-    locked = await api_client.get_subject_sections(cb.from_user.id, subject)
-    locked = [s for s in locked if not bool(s.get("accessible"))]
+    # загрузим разделы и оставим только закрытые (не купленные)
+    sections = await api_client.get_subject_sections(cb.from_user.id, subject)
+    locked = [s for s in sections if not bool(s.get("accessible"))]
     await state.update_data(sections_locked=locked)
+
+    if len(locked) == 0:
+        # t("pay_subject_all_bought").format(subject=subject)
+        await cb.answer(t("pay_sections_empty"), show_alert=True)
+
+        page = subj_idx // PER_PAGE_SUBJ
+        return await render_paysec_subjects(cb.message, cb.from_user.id, api_client, page=page, state=state)
 
     await render_paysec_sections(cb.message, cb.from_user.id, api_client, subj_idx=subj_idx, page=0, state=state)
 
