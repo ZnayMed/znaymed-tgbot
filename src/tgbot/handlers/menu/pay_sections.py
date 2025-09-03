@@ -218,11 +218,11 @@ async def cb_paysec_page(cb: CallbackQuery, api_client: APIGatewayClient, state:
 # === CALLBACKS: OPEN SUBJECT ===
 @router.callback_query(F.data.startswith("paysec:open:"))
 async def cb_paysec_open_subject(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
-    await cb.answer()
     subj_idx = int(cb.data.split(":")[-1])
 
     subjects = await _get_subjects_cached(state, api_client)
     if not (0 <= subj_idx < len(subjects)):
+        await cb.answer()
         return await render_paysec_subjects(cb.message, cb.from_user.id, api_client, page=0, state=state)
 
     subject = subjects[subj_idx]
@@ -241,6 +241,7 @@ async def cb_paysec_open_subject(cb: CallbackQuery, api_client: APIGatewayClient
         page = subj_idx // PER_PAGE_SUBJ
         return await render_paysec_subjects(cb.message, cb.from_user.id, api_client, page=page, state=state)
 
+    await cb.answer()
     await render_paysec_sections(cb.message, cb.from_user.id, api_client, subj_idx=subj_idx, page=0, state=state)
 
 
