@@ -152,7 +152,6 @@ def kb_pay_sections_list(
     total = len(sections_locked)
 
     if total == 0:
-        b.row(InlineKeyboardButton(text="Все разделы уже доступны 🎉", callback_data="paysec:nop"))
         b.row(InlineKeyboardButton(text="◀️ К предметам", callback_data="paysec:subjects"),
               InlineKeyboardButton(text="◀️ В меню", callback_data="paysec:exit_menu"),
               width=2)
