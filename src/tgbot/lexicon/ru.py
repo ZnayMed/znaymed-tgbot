@@ -87,6 +87,7 @@ LEXICON_RU.update({
     "pay_back_menu": "◀️ В меню",
     "pay_soon": "Скоро добавим оформление оплаты.",
     "pay_error": "Не удалось загрузить список предметов. Попробуйте позже.",
+    "pay_all_bought": "Все уже куплено 🎉"
 })
 
 LEXICON_RU.update({
