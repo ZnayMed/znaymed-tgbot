@@ -81,11 +81,7 @@ def kb_pay_root(
         last_page = (total - 1) // per_page
         _add_pager(b, page, last_page, prev_cb=f"pay:page:{page - 1}", next_cb=f"pay:page:{page + 1}")
 
-    if all_btn_text:
-        b.row(InlineKeyboardButton(text="📚 Конкретные разделы", callback_data="pay:sections"))
-    else:
-        b.row(InlineKeyboardButton(text=t("pay_all_bought"), callback_data="pay:sections"))
-
+    b.row(InlineKeyboardButton(text="📚 Конкретные разделы", callback_data="pay:sections"))
     b.row(InlineKeyboardButton(text="◀️ В меню", callback_data="menu:root"))
     return b.as_markup()
 

@@ -1,7 +1,8 @@
 import asyncio
 import logging
 from aiogram import Router, F
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from tgbot.lexicon import t
 from tgbot.services.api_client import APIGatewayClient
@@ -63,6 +64,17 @@ async def render_pay_root(msg, user_id: int, api: APIGatewayClient, page: int = 
         f"Все предметы — {_format_money(all_total_kopeck, all_currency)}"
         if all_total_kopeck > 0 else None
     )
+
+    if all_total_kopeck <= 0:
+        b = InlineKeyboardBuilder()
+        b.row(InlineKeyboardButton(text="◀️ В меню", callback_data="menu:root"))
+
+        return await edit_or_respawn(
+            msg,
+            user_id,
+            t("pay_all_bought"),
+            b.as_markup(),
+        )
 
     return await edit_or_respawn(
         msg,
