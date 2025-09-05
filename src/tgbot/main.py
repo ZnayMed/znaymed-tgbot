@@ -43,7 +43,7 @@ api_client = APIGatewayClient(
 async def set_commands():
     commands = [
         BotCommand(command="start", description="Старт"),
-        BotCommand(command="info", description="Информация о ЗнайMed"),
+        BotCommand(command="info", description="Информация"),
         BotCommand(command="menu", description="Главное меню"),
     ]
     await bot.set_my_commands(commands, BotCommandScopeDefault())

@@ -1,4 +1,3 @@
-# tgbot/middleware/auto_answer.py
 from aiogram import BaseMiddleware
 from aiogram.types import CallbackQuery
 from aiogram.exceptions import TelegramBadRequest

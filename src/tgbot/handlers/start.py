@@ -16,9 +16,8 @@ from tgbot.services.user_cache import cache_registered
 
 from tgbot.utils.prompt_cleaner import clean_user_prompts, register_prompt
 
-
-log = logging.getLogger(__name__)
 router = Router(name="start")
+log = logging.getLogger(__name__)
 
 
 class Reg(StatesGroup):
@@ -38,10 +37,10 @@ def _parse_dob(text: str) -> dt.date | None:
 
 
 @router.message(CommandStart())
-async def cmd_start(msg: Message, api_client: APIGatewayClient):
+async def cmd_start(msg: Message, api: APIGatewayClient):
     await clean_user_prompts(msg.from_user.id, msg.bot, kind="reg")
 
-    if not await ensure_not_registered(msg.from_user.id, msg.bot, api_client):
+    if not await ensure_not_registered(msg.from_user.id, msg.bot, api):
         # Пользователь уже зарегистрирован -> сразу главное меню
         return
 
@@ -51,8 +50,8 @@ async def cmd_start(msg: Message, api_client: APIGatewayClient):
 
 
 @router.callback_query(F.data == "reg")
-async def cb_start_reg(cb: CallbackQuery, state: FSMContext, api_client: APIGatewayClient):
-    if not await ensure_not_registered(cb.from_user.id, cb.message.bot, api_client):
+async def cb_start_reg(cb: CallbackQuery, state: FSMContext, api: APIGatewayClient):
+    if not await ensure_not_registered(cb.from_user.id, cb.message.bot, api):
         await cb.answer()
         return
 
@@ -68,8 +67,8 @@ async def cb_start_reg(cb: CallbackQuery, state: FSMContext, api_client: APIGate
 
 
 @router.message(Reg.name)
-async def reg_name(msg: Message, state: FSMContext, api_client: APIGatewayClient):
-    if not await ensure_not_registered(msg.from_user.id, msg.bot, api_client):
+async def reg_name(msg: Message, state: FSMContext, api: APIGatewayClient):
+    if not await ensure_not_registered(msg.from_user.id, msg.bot, api):
         await state.clear()
         return
 
@@ -79,8 +78,8 @@ async def reg_name(msg: Message, state: FSMContext, api_client: APIGatewayClient
 
 
 @router.message(Reg.dob)
-async def reg_dob(msg: Message, state: FSMContext, api_client: APIGatewayClient):
-    if not await ensure_not_registered(msg.from_user.id, msg.bot, api_client):
+async def reg_dob(msg: Message, state: FSMContext, api: APIGatewayClient):
+    if not await ensure_not_registered(msg.from_user.id, msg.bot, api):
         await state.clear()
         return
 
@@ -93,7 +92,7 @@ async def reg_dob(msg: Message, state: FSMContext, api_client: APIGatewayClient)
     name: str = data["name"]
 
     # Регистрация в бэкенде
-    await api_client.register_user(msg.from_user.id, name, dob.isoformat())
+    await api.register_user(msg.from_user.id, name, dob.isoformat())
 
     # Позитивный кэш
     r = get_redis()

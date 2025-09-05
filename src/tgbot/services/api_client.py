@@ -11,6 +11,10 @@ class APIGatewayClient(httpx.AsyncClient):
         data = await self.request_json("GET", f"/check_user?tgid={tg_user_id}")
         return bool(data.get("exists"))
 
+    async def is_admin(self, tg_user_id: int) -> bool:
+        data = await self.request_json("GET", f"/is_admin?tgid={tg_user_id}")
+        return bool(data.get("is_admin"))
+
     async def register_user(self, tg_user_id: int, name: str, dob_iso: str):
         body = {"name": name, "tgid": str(tg_user_id), "birthdate": dob_iso}
         print(body)

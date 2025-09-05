@@ -129,23 +129,23 @@ async def render_payment_screen(
 
 
 @router.callback_query(F.data == "menu:pay")
-async def cb_menu_pay(cb: CallbackQuery, api_client: APIGatewayClient):
+async def cb_menu_pay(cb: CallbackQuery, api: APIGatewayClient):
     await cb.answer()
-    await render_pay_root(cb.message, cb.from_user.id, api_client, page=0)
+    await render_pay_root(cb.message, cb.from_user.id, api, page=0)
 
 
 @router.callback_query(F.data.startswith("pay:page:"))
-async def cb_pay_page(cb: CallbackQuery, api_client: APIGatewayClient):
+async def cb_pay_page(cb: CallbackQuery, api: APIGatewayClient):
     await cb.answer()
     page = int(cb.data.split(":")[-1])
-    await render_pay_root(cb.message, cb.from_user.id, api_client, page=page)
+    await render_pay_root(cb.message, cb.from_user.id, api, page=page)
 
 
 @router.callback_query(F.data == "pay:buy:all")
-async def cb_pay_buy_all(cb: CallbackQuery, api_client: APIGatewayClient):
+async def cb_pay_buy_all(cb: CallbackQuery, api: APIGatewayClient):
     await cb.answer()
     try:
-        subjects = await api_client.get_subjects()
+        subjects = await api.get_subjects()
     except Exception as e:
         log.exception("get_subjects failed: %s", e)
         await cb.answer(t("api_error"), show_alert=True)
@@ -156,7 +156,7 @@ async def cb_pay_buy_all(cb: CallbackQuery, api_client: APIGatewayClient):
         return
 
     try:
-        resp = await api_client.create_payment_subjects(cb.from_user.id, subjects)
+        resp = await api.create_payment_subjects(cb.from_user.id, subjects)
     except Exception as e:
         log.exception("create_payment_missing_sections failed: %s", e)
         await cb.answer(t("pay_create_failed"), show_alert=True)
@@ -188,7 +188,7 @@ async def cb_pay_buy_all(cb: CallbackQuery, api_client: APIGatewayClient):
 
 
 @router.callback_query(F.data.startswith("pay:subject:"))
-async def cb_pay_buy_subject(cb: CallbackQuery, api_client: APIGatewayClient):
+async def cb_pay_buy_subject(cb: CallbackQuery, api: APIGatewayClient):
     await cb.answer()
     # индекс предмета — глобальный (как в kb_pay_root)
     try:
@@ -198,7 +198,7 @@ async def cb_pay_buy_subject(cb: CallbackQuery, api_client: APIGatewayClient):
         return
 
     try:
-        subjects = await api_client.get_subjects()
+        subjects = await api.get_subjects()
     except Exception as e:
         log.exception("get_subjects failed: %s", e)
         await cb.answer(t("api_error"), show_alert=True)
@@ -206,13 +206,13 @@ async def cb_pay_buy_subject(cb: CallbackQuery, api_client: APIGatewayClient):
 
     if not (0 <= idx < len(subjects)):
         # список изменился; вернёмся на экран оплаты
-        await render_pay_root(cb.message, cb.from_user.id, api_client, page=0)
+        await render_pay_root(cb.message, cb.from_user.id, api, page=0)
         return
 
     subject = subjects[idx]
 
     try:
-        resp = await api_client.create_payment_subjects(cb.from_user.id, [subject])
+        resp = await api.create_payment_subjects(cb.from_user.id, [subject])
     except Exception as e:
         log.exception("create_payment_missing_sections failed: %s", e)
         await cb.answer(t("pay_create_failed"), show_alert=True)

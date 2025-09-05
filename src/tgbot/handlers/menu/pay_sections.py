@@ -193,52 +193,52 @@ async def render_paysec_sections(
 
 # === CALLBACKS: ROOT ===
 @router.callback_query(F.data == "pay:sections")
-async def cb_pay_sections_root(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
+async def cb_pay_sections_root(cb: CallbackQuery, api: APIGatewayClient, state: FSMContext):
     await cb.answer()
     await state.set_state(PaySec.flow)
     await _set_cart(state, set())
 
-    subjects = await api_client.get_subjects()
+    subjects = await api.get_subjects()
     await state.update_data(subjects=subjects, subj_idx=None, subject=None, sections_locked=None)
 
-    await render_paysec_subjects(cb.message, cb.from_user.id, api_client, page=0, state=state)
+    await render_paysec_subjects(cb.message, cb.from_user.id, api, page=0, state=state)
 
 
 # === CALLBACKS: PAGINATION (SUBJECTS) ===
 @router.callback_query(F.data.startswith("paysec:page:"))
-async def cb_paysec_page(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
+async def cb_paysec_page(cb: CallbackQuery, api: APIGatewayClient, state: FSMContext):
     await cb.answer()
     raw_page = int(cb.data.split(":")[-1])
-    subjects = await _get_subjects_cached(state, api_client)
+    subjects = await _get_subjects_cached(state, api)
     page = _clamp_page(len(subjects), PER_PAGE_SUBJ, raw_page)
 
-    await render_paysec_subjects(cb.message, cb.from_user.id, api_client, page=page, state=state)
+    await render_paysec_subjects(cb.message, cb.from_user.id, api, page=page, state=state)
 
 
 # === CALLBACKS: OPEN SUBJECT ===
 @router.callback_query(F.data.startswith("paysec:open:"))
-async def cb_paysec_open_subject(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
+async def cb_paysec_open_subject(cb: CallbackQuery, api: APIGatewayClient, state: FSMContext):
     await cb.answer()
     subj_idx = int(cb.data.split(":")[-1])
 
-    subjects = await _get_subjects_cached(state, api_client)
+    subjects = await _get_subjects_cached(state, api)
     if not (0 <= subj_idx < len(subjects)):
-        return await render_paysec_subjects(cb.message, cb.from_user.id, api_client, page=0, state=state)
+        return await render_paysec_subjects(cb.message, cb.from_user.id, api, page=0, state=state)
 
     subject = subjects[subj_idx]
 
     await _set_current_subject(state, subj_idx, subject)
 
-    locked = await api_client.get_subject_sections(cb.from_user.id, subject)
+    locked = await api.get_subject_sections(cb.from_user.id, subject)
     locked = [s for s in locked if not bool(s.get("accessible"))]
     await state.update_data(sections_locked=locked)
 
-    await render_paysec_sections(cb.message, cb.from_user.id, api_client, subj_idx=subj_idx, page=0, state=state)
+    await render_paysec_sections(cb.message, cb.from_user.id, api, subj_idx=subj_idx, page=0, state=state)
 
 
 # === CALLBACKS: PAGINATION (SECTIONS) ===
 @router.callback_query(F.data.startswith("paysec:sectpage:"))
-async def cb_paysec_sections_page(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
+async def cb_paysec_sections_page(cb: CallbackQuery, api: APIGatewayClient, state: FSMContext):
     await cb.answer()
     _, _, subj_idx, raw_page = cb.data.split(":")
     subj_idx, raw_page = int(subj_idx), int(raw_page)
@@ -247,12 +247,12 @@ async def cb_paysec_sections_page(cb: CallbackQuery, api_client: APIGatewayClien
     locked = data.get("sections_locked") or []
     page = _clamp_page(len(locked), PER_PAGE_SECT, raw_page)
 
-    await render_paysec_sections(cb.message, cb.from_user.id, api_client, subj_idx=subj_idx, page=page, state=state)
+    await render_paysec_sections(cb.message, cb.from_user.id, api, subj_idx=subj_idx, page=page, state=state)
 
 
 # === CALLBACKS: TOGGLE SECTION ===
 @router.callback_query(F.data.startswith("paysec:toggle:"))
-async def cb_paysec_toggle(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
+async def cb_paysec_toggle(cb: CallbackQuery, api: APIGatewayClient, state: FSMContext):
     await cb.answer()
     _, _, subj_idx, sect_idx, raw_page = cb.data.split(":")
     subj_idx, sect_idx, raw_page = int(subj_idx), int(sect_idx), int(raw_page)
@@ -271,12 +271,12 @@ async def cb_paysec_toggle(cb: CallbackQuery, api_client: APIGatewayClient, stat
     await _toggle_cart(state, subject, title)
 
     page = _clamp_page(len(locked), PER_PAGE_SECT, raw_page)
-    await render_paysec_sections(cb.message, cb.from_user.id, api_client, subj_idx=subj_idx, page=page, state=state)
+    await render_paysec_sections(cb.message, cb.from_user.id, api, subj_idx=subj_idx, page=page, state=state)
 
 
 # === CALLBACKS: CHECKOUT ===
 @router.callback_query(F.data == "paysec:checkout")
-async def cb_paysec_checkout(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
+async def cb_paysec_checkout(cb: CallbackQuery, api: APIGatewayClient, state: FSMContext):
     await cb.answer()
 
     data = await state.get_data()
@@ -297,7 +297,7 @@ async def cb_paysec_checkout(cb: CallbackQuery, api_client: APIGatewayClient, st
     sections = sorted({sec for _, sec in decoded})
 
     try:
-        resp = await api_client.create_payment_sections(cb.from_user.id, sections)
+        resp = await api.create_payment_sections(cb.from_user.id, sections)
     except Exception as e:
         log.exception("Create payment failed: %s", e)
         await cb.answer(t("pay_create_failed"), show_alert=True)
@@ -332,17 +332,17 @@ async def cb_paysec_checkout(cb: CallbackQuery, api_client: APIGatewayClient, st
 
 # === CALLBACKS: NAVIGATION ===
 @router.callback_query(F.data == "paysec:subjects")
-async def cb_paysec_subjects(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
+async def cb_paysec_subjects(cb: CallbackQuery, api: APIGatewayClient, state: FSMContext):
     await cb.answer()
-    await render_paysec_subjects(cb.message, cb.from_user.id, api_client, page=0, state=state)
+    await render_paysec_subjects(cb.message, cb.from_user.id, api, page=0, state=state)
 
 
 @router.callback_query(F.data == "paysec:exit")
-async def cb_paysec_exit(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
+async def cb_paysec_exit(cb: CallbackQuery, api: APIGatewayClient, state: FSMContext):
     await cb.answer()
     await state.clear()
     from .payment import render_pay_root
-    await render_pay_root(cb.message, cb.from_user.id, api_client, page=0)
+    await render_pay_root(cb.message, cb.from_user.id, api, page=0)
 
 
 @router.callback_query(F.data == "paysec:exit_menu")
@@ -359,7 +359,7 @@ async def cb_paysec_nop(cb: CallbackQuery):
 
 
 # === RENDER: CART ===
-async def render_paysec_cart(msg, user_id: int, api_client: APIGatewayClient, state: FSMContext, page: int = 0):
+async def render_paysec_cart(msg, user_id: int, api: APIGatewayClient, state: FSMContext, page: int = 0):
     data = await state.get_data()
     raw = list(data.get("cart", []))
 
@@ -378,7 +378,7 @@ async def render_paysec_cart(msg, user_id: int, api_client: APIGatewayClient, st
         try:
             # серверу нужны только названия секций; на всякий случай уберём дубли
             sections = sorted({sec for _, sec in decoded})
-            resp = await api_client.get_sections_total(user_id, sections)
+            resp = await api.get_sections_total(user_id, sections)
             kopeck = int(resp.get("total_kopeck", 0))
             currency = str(resp.get("currency", "RUB"))
 
@@ -407,20 +407,20 @@ async def render_paysec_cart(msg, user_id: int, api_client: APIGatewayClient, st
 
 # === CALLBACKS: CART ===
 @router.callback_query(F.data == "paysec:cart")
-async def cb_paysec_cart(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
+async def cb_paysec_cart(cb: CallbackQuery, api: APIGatewayClient, state: FSMContext):
     await cb.answer()
-    await render_paysec_cart(cb.message, cb.from_user.id, api_client, state, page=0)
+    await render_paysec_cart(cb.message, cb.from_user.id, api, state, page=0)
 
 
 @router.callback_query(F.data.startswith("paysec:cartpage:"))
-async def cb_paysec_cartpage(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
+async def cb_paysec_cartpage(cb: CallbackQuery, api: APIGatewayClient, state: FSMContext):
     await cb.answer()
     page = int(cb.data.split(":")[-1])
-    await render_paysec_cart(cb.message, cb.from_user.id, api_client, state, page=page)
+    await render_paysec_cart(cb.message, cb.from_user.id, api, state, page=page)
 
 
 @router.callback_query(F.data.startswith("paysec:cartremove:"))
-async def cb_paysec_cartremove(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
+async def cb_paysec_cartremove(cb: CallbackQuery, api: APIGatewayClient, state: FSMContext):
     await safe_answer(cb)
     _, _, idx_str, page_str = cb.data.split(":")
     idx, page = int(idx_str), int(page_str)
@@ -447,11 +447,11 @@ async def cb_paysec_cartremove(cb: CallbackQuery, api_client: APIGatewayClient, 
             raw_set.remove(key)
             await state.update_data(cart=list(raw_set))
 
-    await render_paysec_cart(cb.message, cb.from_user.id, api_client, state, page=page)
+    await render_paysec_cart(cb.message, cb.from_user.id, api, state, page=page)
 
 
 @router.callback_query(F.data == "paysec:cartclear")
-async def cb_paysec_cartclear(cb: CallbackQuery, api_client: APIGatewayClient, state: FSMContext):
+async def cb_paysec_cartclear(cb: CallbackQuery, api: APIGatewayClient, state: FSMContext):
     await cb.answer()
     await state.update_data(cart=[])
-    await render_paysec_cart(cb.message, cb.from_user.id, api_client, state, page=0)
+    await render_paysec_cart(cb.message, cb.from_user.id, api, state, page=0)
