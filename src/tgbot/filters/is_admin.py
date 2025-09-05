@@ -5,11 +5,11 @@ from tgbot.services.api_client import APIGatewayClient
 
 
 class IsAdmin(BaseFilter):
-    async def __call__(self, event: Union[Message, CallbackQuery], api: APIGatewayClient) -> bool:
+    async def __call__(self, event: Union[Message, CallbackQuery], api_client: APIGatewayClient) -> bool:
         user = getattr(event, "from_user", None)
         if not user:
             return False
         try:
-            return await api.is_admin(user.id)
+            return await api_client.is_admin(user.id)
         except Exception:
             return False
