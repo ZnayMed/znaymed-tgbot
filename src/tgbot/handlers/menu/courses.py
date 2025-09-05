@@ -90,80 +90,80 @@ async def render_topic_view(msg, user_id: int, api: APIGatewayClient,
 # --- callbacks ---
 
 @router.callback_query(F.data == "menu:courses")
-async def cb_menu_courses(cb: CallbackQuery, api: APIGatewayClient):
+async def cb_menu_courses(cb: CallbackQuery, api_client: APIGatewayClient):
     await cb.answer()
-    await render_subjects(cb.message, cb.from_user.id, api, page=0)
+    await render_subjects(cb.message, cb.from_user.id, api_client, page=0)
 
 
 @router.callback_query(F.data.startswith("courses:page:"))
-async def cb_courses_page(cb: CallbackQuery, api: APIGatewayClient):
+async def cb_courses_page(cb: CallbackQuery, api_client: APIGatewayClient):
     await cb.answer()
     page = int(cb.data.split(":")[-1])
-    await render_subjects(cb.message, cb.from_user.id, api, page=page)
+    await render_subjects(cb.message, cb.from_user.id, api_client, page=page)
 
 
 @router.callback_query(F.data.startswith("courses:open:"))
-async def cb_courses_open(cb: CallbackQuery, api: APIGatewayClient):
+async def cb_courses_open(cb: CallbackQuery, api_client: APIGatewayClient):
     await cb.answer()
     subj_idx = int(cb.data.split(":")[-1])
-    await render_sections(cb.message, cb.from_user.id, api, subj_idx=subj_idx, page=0)
+    await render_sections(cb.message, cb.from_user.id, api_client, subj_idx=subj_idx, page=0)
 
 
 @router.callback_query(F.data.startswith("sect:page:"))
-async def cb_sections_page(cb: CallbackQuery, api: APIGatewayClient):
+async def cb_sections_page(cb: CallbackQuery, api_client: APIGatewayClient):
     await cb.answer()
     _, _, subj_idx, page = cb.data.split(":")
-    await render_sections(cb.message, cb.from_user.id, api, subj_idx=int(subj_idx), page=int(page))
+    await render_sections(cb.message, cb.from_user.id, api_client, subj_idx=int(subj_idx), page=int(page))
 
 
 @router.callback_query(F.data.startswith("sect:back:"))
-async def cb_sections_back(cb: CallbackQuery, api: APIGatewayClient):
+async def cb_sections_back(cb: CallbackQuery, api_client: APIGatewayClient):
     await cb.answer()
     subj_idx = int(cb.data.split(":")[-1])
-    await render_sections(cb.message, cb.from_user.id, api, subj_idx=subj_idx, page=0)
+    await render_sections(cb.message, cb.from_user.id, api_client, subj_idx=subj_idx, page=0)
 
 
 @router.callback_query(F.data.startswith("sect:open:"))
-async def cb_section_open(cb: CallbackQuery, api: APIGatewayClient):
+async def cb_section_open(cb: CallbackQuery, api_client: APIGatewayClient):
     await cb.answer()
     _, _, subj_idx, sect_idx = cb.data.split(":")
-    await render_topics(cb.message, cb.from_user.id, api,
+    await render_topics(cb.message, cb.from_user.id, api_client,
                         subj_idx=int(subj_idx), sect_idx=int(sect_idx), page=0)
 
 
 @router.callback_query(F.data.startswith("sect:locked:"))
-async def cb_section_locked(cb: CallbackQuery, api: APIGatewayClient):
+async def cb_section_locked(cb: CallbackQuery, api_client: APIGatewayClient):
     await cb.answer(t("section_locked_alert"), show_alert=True)
 
 
 @router.callback_query(F.data.startswith("topics:page:"))
-async def cb_topics_page(cb: CallbackQuery, api: APIGatewayClient):
+async def cb_topics_page(cb: CallbackQuery, api_client: APIGatewayClient):
     await cb.answer()
     _, _, subj_idx, sect_idx, page = cb.data.split(":")
-    await render_topics(cb.message, cb.from_user.id, api,
+    await render_topics(cb.message, cb.from_user.id, api_client,
                         subj_idx=int(subj_idx), sect_idx=int(sect_idx), page=int(page))
 
 
 @router.callback_query(F.data.startswith("topic:view:"))
-async def cb_topic_view(cb: CallbackQuery, api: APIGatewayClient):
+async def cb_topic_view(cb: CallbackQuery, api_client: APIGatewayClient):
     await cb.answer()
     _, _, subj_idx, sect_idx, topic_idx, back_page = cb.data.split(":")
-    await render_topic_view(cb.message, cb.from_user.id, api,
+    await render_topic_view(cb.message, cb.from_user.id, api_client,
                             subj_idx=int(subj_idx), sect_idx=int(sect_idx),
                             topic_idx=int(topic_idx), back_page=int(back_page))
 
 
 @router.callback_query(F.data.startswith("topic:video:"))
-async def cb_topic_video(cb: CallbackQuery, api: APIGatewayClient):
+async def cb_topic_video(cb: CallbackQuery, api_client: APIGatewayClient):
     await cb.answer()
     _, _, subj_idx, sect_idx, topic_idx, _ = cb.data.split(":")
     si, ci, ti = int(subj_idx), int(sect_idx), int(topic_idx)
 
-    subjects = await api.get_subjects()
+    subjects = await api_client.get_subjects()
     subject = subjects[si]
-    sections = await api.get_subject_sections(cb.from_user.id, subject)
+    sections = await api_client.get_subject_sections(cb.from_user.id, subject)
     section_title = sections[ci]["title"]
-    data = await api.get_section_topics(section_title)
+    data = await api_client.get_section_topics(section_title)
     topics = list(data.get("topics") or [])
     if not (0 <= ti < len(topics)):
         return

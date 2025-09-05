@@ -37,10 +37,10 @@ def _parse_dob(text: str) -> dt.date | None:
 
 
 @router.message(CommandStart())
-async def cmd_start(msg: Message, api: APIGatewayClient):
+async def cmd_start(msg: Message, api_client: APIGatewayClient):
     await clean_user_prompts(msg.from_user.id, msg.bot, kind="reg")
 
-    if not await ensure_not_registered(msg.from_user.id, msg.bot, api):
+    if not await ensure_not_registered(msg.from_user.id, msg.bot, api_client):
         # Пользователь уже зарегистрирован -> сразу главное меню
         return
 
@@ -50,8 +50,8 @@ async def cmd_start(msg: Message, api: APIGatewayClient):
 
 
 @router.callback_query(F.data == "reg")
-async def cb_start_reg(cb: CallbackQuery, state: FSMContext, api: APIGatewayClient):
-    if not await ensure_not_registered(cb.from_user.id, cb.message.bot, api):
+async def cb_start_reg(cb: CallbackQuery, state: FSMContext, api_client: APIGatewayClient):
+    if not await ensure_not_registered(cb.from_user.id, cb.message.bot, api_client):
         await cb.answer()
         return
 
@@ -67,8 +67,8 @@ async def cb_start_reg(cb: CallbackQuery, state: FSMContext, api: APIGatewayClie
 
 
 @router.message(Reg.name)
-async def reg_name(msg: Message, state: FSMContext, api: APIGatewayClient):
-    if not await ensure_not_registered(msg.from_user.id, msg.bot, api):
+async def reg_name(msg: Message, state: FSMContext, api_client: APIGatewayClient):
+    if not await ensure_not_registered(msg.from_user.id, msg.bot, api_client):
         await state.clear()
         return
 
@@ -78,8 +78,8 @@ async def reg_name(msg: Message, state: FSMContext, api: APIGatewayClient):
 
 
 @router.message(Reg.dob)
-async def reg_dob(msg: Message, state: FSMContext, api: APIGatewayClient):
-    if not await ensure_not_registered(msg.from_user.id, msg.bot, api):
+async def reg_dob(msg: Message, state: FSMContext, api_client: APIGatewayClient):
+    if not await ensure_not_registered(msg.from_user.id, msg.bot, api_client):
         await state.clear()
         return
 
@@ -92,7 +92,7 @@ async def reg_dob(msg: Message, state: FSMContext, api: APIGatewayClient):
     name: str = data["name"]
 
     # Регистрация в бэкенде
-    await api.register_user(msg.from_user.id, name, dob.isoformat())
+    await api_client.register_user(msg.from_user.id, name, dob.isoformat())
 
     # Позитивный кэш
     r = get_redis()
