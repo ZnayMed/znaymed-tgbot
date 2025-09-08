@@ -1,4 +1,3 @@
-import datetime as dt
 import logging
 import re
 from aiogram import F, Router
@@ -22,18 +21,21 @@ log = logging.getLogger(__name__)
 
 class Reg(StatesGroup):
     name = State()
-    dob = State()
+    email = State()
 
 
-def _parse_dob(text: str) -> dt.date | None:
-    m = re.fullmatch(r"(\d{2})[.](\d{2})[.](\d{4})", text.strip())
-    if not m:
+_EMAIL_RE = re.compile(
+    r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$"
+)
+
+
+def _parse_email(text: str) -> str | None:
+    s = (text or "").strip()
+    if not s:
         return None
-    d, mth, y = map(int, m.groups())
-    try:
-        return dt.date(y, mth, d)
-    except ValueError:
-        return None
+    if _EMAIL_RE.fullmatch(s):
+        return s.lower()
+    return None
 
 
 @router.message(CommandStart())
@@ -41,10 +43,9 @@ async def cmd_start(msg: Message, api_client: APIGatewayClient):
     await clean_user_prompts(msg.from_user.id, msg.bot, kind="reg")
 
     if not await ensure_not_registered(msg.from_user.id, msg.bot, api_client):
-        # Пользователь уже зарегистрирован -> сразу главное меню
+        # Уже зарегистрирован → ничего не спрашиваем
         return
 
-    # Не зарегистрирован -> показываем экран регистрации
     sent = await msg.answer(t("welcome_register"), reply_markup=kb_reg())
     await register_prompt(msg.from_user.id, sent.chat.id, sent.message_id, kind="reg")
 
@@ -55,7 +56,7 @@ async def cb_start_reg(cb: CallbackQuery, state: FSMContext, api_client: APIGate
         await cb.answer()
         return
 
-    # Гасим клавиатуру у текущего registration-сообщения (оно уже записано как kind="reg")
+    # Гасим клавиатуру
     try:
         await cb.message.edit_reply_markup(reply_markup=None)
     except Exception:
@@ -72,27 +73,27 @@ async def reg_name(msg: Message, state: FSMContext, api_client: APIGatewayClient
         await state.clear()
         return
 
-    await state.update_data(name=msg.text.strip())
-    await state.set_state(Reg.dob)
-    await msg.answer(t("ask_dob"), parse_mode="HTML")
+    await state.update_data(name=(msg.text or "").strip())
+    await state.set_state(Reg.email)
+    await msg.answer(t("ask_email"), parse_mode="HTML")
 
 
-@router.message(Reg.dob)
-async def reg_dob(msg: Message, state: FSMContext, api_client: APIGatewayClient):
+@router.message(Reg.email)
+async def reg_email(msg: Message, state: FSMContext, api_client: APIGatewayClient):
     if not await ensure_not_registered(msg.from_user.id, msg.bot, api_client):
         await state.clear()
         return
 
-    dob = _parse_dob(msg.text)
-    if not dob:
-        await msg.answer(t("bad_dob_format"))
+    email = _parse_email(msg.text)
+    if not email:
+        await msg.answer(t("bad_email_format"))
         return
 
     data = await state.get_data()
     name: str = data["name"]
 
     # Регистрация в бэкенде
-    await api_client.register_user(msg.from_user.id, name, dob.isoformat())
+    await api_client.register_user(msg.from_user.id, name, email)
 
     # Позитивный кэш
     r = get_redis()
@@ -100,7 +101,7 @@ async def reg_dob(msg: Message, state: FSMContext, api_client: APIGatewayClient)
 
     await state.clear()
 
-    # Чистим экраны регистрации и показываем главное меню (одно сообщение)
+    # Чистим экраны регистрации и показываем успех
     await clean_user_prompts(msg.from_user.id, msg.bot, kind="reg")
     await msg.answer(t("reg_success"))
     # await send_main_menu(msg.bot, msg.chat.id, msg.from_user.id)

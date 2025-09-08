@@ -15,8 +15,8 @@ class APIGatewayClient(httpx.AsyncClient):
         data = await self.request_json("GET", f"/is_admin?tgid={tg_user_id}")
         return bool(data.get("is_admin"))
 
-    async def register_user(self, tg_user_id: int, name: str, dob_iso: str):
-        body = {"name": name, "tgid": str(tg_user_id), "birthdate": dob_iso}
+    async def register_user(self, tg_user_id: int, name: str, email: str):
+        body = {"name": name, "tgid": str(tg_user_id), "email": email}
         print(body)
         return await self.request_json("POST", "/register", json=body)
 
