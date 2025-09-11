@@ -88,7 +88,6 @@ async def edit_or_respawn_media(msg, user_id: int, *,
                 message_id=msg.message_id,
                 media=media,
                 reply_markup=reply_markup,
-                protect_content=protect_content
             )
         except TelegramBadRequest as e:
             em = (getattr(e, "message", "") or str(e)).lower()
