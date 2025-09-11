@@ -9,9 +9,6 @@ znaymed-tgbot/                ← корень git-репозитория
 ├── .gitignore
 ├── Dockerfile
 ├── docker-compose.yml        ← локальные сервисы: pg, redis, etc.
-├── scripts/                  ← вспомогательные dev-скрипты
-│   ├── format.sh             ← запуск black + isort
-│   └── migrate.sh            ← миграции БД, если нужны
 ├── src/                      ← **весь исполняемый код живёт здесь**
 │   └── tgbot/                ← сам пакет (имя совпадает с include в pyproject)
 │       ├── __init__.py
@@ -28,10 +25,7 @@ znaymed-tgbot/                ← корень git-репозитория
 │       ├── middlewares/      ← лог, антифлуд, локализация
 │       │   └── __init__.py
 │       ├── services/         ← «инфраструктура» (БД, Kafka, HTTP-API)
-│       │   ├── __init__.py
-│       │   ├── db.py         ← репозиторий (asyncpg / SQLModel / SQLAlchemy)
-│       │   ├── payment_api.py
-│       │   └── course_api.py
+│       │   └── __init__.py
 │       ├── utils/            ← мелкие общие функции/классы
 │       │   └── exceptions.py
 │       └── typing.py         ← общие TypedDict / Protocol
