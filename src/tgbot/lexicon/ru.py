@@ -118,3 +118,13 @@ LEXICON_RU.update({
     "pay_nothing_to_buy": "Все выбранные разделы уже доступны — оплачивать нечего.",
     "pay_missing_url": "Ссылка на оплату не получена.",
 })
+
+LEXICON_RU.update({
+    "email_change_ask": (
+        "✉️ Введите новый <b>e-mail</b> (например, name@example.com).\n\n"
+        "Он будет использован для отправки чеков и уведомлений."
+    ),
+    "email_change_invalid": "❌ Некорректный формат почты. Проверь и отправь ещё раз.",
+    "email_change_success": "✅ E-mail успешно обновлён!",
+    "email_change_fail": "❌ Не удалось обновить e-mail. Попробуйте позже.",
+})

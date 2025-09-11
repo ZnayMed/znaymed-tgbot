@@ -20,6 +20,10 @@ class APIGatewayClient(httpx.AsyncClient):
         print(body)
         return await self.request_json("POST", "/register", json=body)
 
+    async def change_email(self, tg_user_id: int, new_email: str) -> dict:
+        body = {"tgid": str(tg_user_id), "new_email": new_email}
+        return await self.request_json("POST", "/change_email", json=body)
+
     async def get_subjects(self) -> list[str]:
         data = await self.request_json("GET", "/listsubjects")
         return [str(s) for s in (data.get("subjects") or [])]

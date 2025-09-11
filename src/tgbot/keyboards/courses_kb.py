@@ -7,9 +7,9 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 def _add_pager(builder: InlineKeyboardBuilder, page: int, last_page: int, prev_cb: str, next_cb: str) -> None:
     nav = []
     if page > 0:
-        nav.append(InlineKeyboardButton(text="⟨ Назад", callback_data=prev_cb))
+        nav.append(InlineKeyboardButton(text="<-", callback_data=prev_cb))
     if page < last_page:
-        nav.append(InlineKeyboardButton(text="Вперёд ⟩", callback_data=next_cb))
+        nav.append(InlineKeyboardButton(text="->", callback_data=next_cb))
     if nav:
         builder.row(*nav, width=len(nav))
 
