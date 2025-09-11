@@ -31,7 +31,7 @@ def _shorten(text: str, max_len: int = 40) -> str:
 
 # ===== keyboards =====
 
-def kb_subjects(subjects: list[str], page: int = 0, per_page: int = 9, row_width: int = 3):
+def kb_subjects(subjects: list[str], page: int = 0, per_page: int = 9, row_width: int = 2):
     b = InlineKeyboardBuilder()
     total = len(subjects)
     if total == 0:
@@ -94,7 +94,7 @@ def kb_sections(sections: list[dict], subj_idx: int, page: int = 0, per_page: in
     return b.as_markup()
 
 
-def kb_topics(topics: list[dict], subj_idx: int, sect_idx: int, page: int = 0, per_page: int = 8, row_width: int = 1):
+def kb_topics(topics: list[dict], subj_idx: int, sect_idx: int, page: int = 0, per_page: int = 8, row_width: int = 2):
     b = InlineKeyboardBuilder()
     total = len(topics)
     if total == 0:

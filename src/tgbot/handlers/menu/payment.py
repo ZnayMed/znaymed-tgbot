@@ -7,7 +7,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from tgbot.lexicon import t
 from tgbot.services.api_client import APIGatewayClient
 from tgbot.keyboards.payment_kb import kb_pay_root, kb_payment_link
-from .utils import edit_or_respawn
+from tgbot.utils.edit_or_respawn import edit_or_respawn
 
 router = Router(name="menu.payment")
 log = logging.getLogger(__name__)

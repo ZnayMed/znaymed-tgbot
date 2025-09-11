@@ -11,7 +11,7 @@ from tgbot.keyboards.payment_kb import (
     kb_pay_sections_list,
     kb_pay_cart,
 )
-from .utils import edit_or_respawn
+from tgbot.utils.edit_or_respawn import edit_or_respawn
 from ...utils.safe_answer import safe_answer
 
 # === ROUTER ===

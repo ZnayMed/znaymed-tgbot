@@ -5,7 +5,7 @@ from aiogram.types import Message, CallbackQuery
 
 from tgbot.lexicon import t
 from tgbot.keyboards.menu_kb import kb_menu_root
-from .utils import send_single_menu, edit_or_respawn
+from tgbot.utils.edit_or_respawn import send_single_menu, edit_or_respawn
 
 router = Router(name="menu.root")
 log = logging.getLogger(__name__)

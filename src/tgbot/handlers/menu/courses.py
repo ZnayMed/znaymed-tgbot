@@ -1,19 +1,18 @@
-import contextlib
 import logging
 from aiogram import Router, F
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, InputMediaVideo
 
 from tgbot.lexicon import t
 from tgbot.services.api_client import APIGatewayClient
 from tgbot.keyboards.courses_kb import kb_subjects, kb_sections, kb_topics, kb_topic_links
-from .utils import edit_or_respawn
+from tgbot.utils.edit_or_respawn import edit_or_respawn, edit_or_respawn_media
 
 router = Router(name="menu.courses")
 log = logging.getLogger(__name__)
 
 PER_PAGE_SUBJ = 9
 PER_PAGE_SECT = 10
-PER_PAGE_TOPICS = 8
+PER_PAGE_TOPICS = 10
 
 
 async def render_subjects(msg, user_id: int, api: APIGatewayClient, page: int = 0):
@@ -73,60 +72,30 @@ async def render_topic_view(msg, user_id: int, api: APIGatewayClient,
         return await render_sections(msg, user_id, api, subj_idx=subj_idx, page=0)
 
     section_title = sections[sect_idx]["title"]
-
     data = await api.get_section_topics(section_title)
     topics = list(data.get("topics") or [])
     if not (0 <= topic_idx < len(topics)):
         return await render_topics(msg, user_id, api, subj_idx, sect_idx, page=back_page)
 
     tdata = topics[topic_idx]
-    title = tdata.get("title") or "Тема"
+    title = (tdata.get("title") or "Тема").strip()
     tg_id = (tdata.get("tg_id") or "").strip()
     desc_url = (tdata.get("description") or "").strip() or None
     mind_url = (tdata.get("mindmap_url") or "").strip() or None
 
-    # Клава под видео/сообщением
     markup = kb_topic_links(desc_url, mind_url, subj_idx, sect_idx, back_page)
 
-    # Если есть видео — отправляем его с подписью = название темы
     if tg_id:
-        sent = False
-        try:
-            await msg.bot.send_video(
-                chat_id=msg.chat.id,
-                video=tg_id,
-                caption=title,  # название темы
-                reply_markup=markup,
-                protect_content=True,
-            )
-            sent = True
-        except Exception:
-            with contextlib.suppress(Exception):
-                await msg.bot.send_document(
-                    chat_id=msg.chat.id,
-                    document=tg_id,
-                    caption=title,
-                    reply_markup=markup,
-                    protect_content=True,
-                )
-                sent = True
-
-        if not sent:
-            # Если совсем не получилось — просто текст с кнопками
-            await msg.bot.send_message(
-                chat_id=msg.chat.id,
-                text=t("topic_video_error").format(title=title),
-                reply_markup=markup,
-                protect_content=True,
-            )
+        # Меняем/пересоздаём МЕНЮ как ВИДЕО (caption = название темы), пересылка запрещена
+        media = InputMediaVideo(media=tg_id, caption=title, parse_mode="HTML")
+        await edit_or_respawn_media(msg, user_id, media=media, reply_markup=markup, protect_content=True)
         return
 
-    # Если видео нет — честно сообщаем и даем ссылки/навигацию
-    await msg.bot.send_message(
-        chat_id=msg.chat.id,
-        text=t("topic_no_video").format(title=title),
-        reply_markup=markup,
-        protect_content=True,
+    # если у темы нет видео — оставляем меню текстовым
+    await edit_or_respawn(
+        msg, user_id,
+        t("topic_no_video").format(title=title),
+        markup
     )
 
 
