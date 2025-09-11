@@ -5,7 +5,7 @@ from aiogram.types import CallbackQuery
 
 from tgbot.lexicon import t
 from tgbot.services.api_client import APIGatewayClient
-from tgbot.keyboards.courses_kb import kb_subjects, kb_sections, kb_topics, kb_topic_detail
+from tgbot.keyboards.courses_kb import kb_subjects, kb_sections, kb_topics, kb_topic_detail, kb_topic_links
 from .utils import edit_or_respawn
 
 router = Router(name="menu.courses")
@@ -69,7 +69,11 @@ async def render_topic_view(msg, user_id: int, api: APIGatewayClient,
     subjects = await api.get_subjects()
     subject = subjects[subj_idx]
     sections = await api.get_subject_sections(user_id, subject)
+    if not (0 <= sect_idx < len(sections)):
+        return await render_sections(msg, user_id, api, subj_idx=subj_idx, page=0)
+
     section_title = sections[sect_idx]["title"]
+
     data = await api.get_section_topics(section_title)
     topics = list(data.get("topics") or [])
     if not (0 <= topic_idx < len(topics)):
@@ -77,14 +81,53 @@ async def render_topic_view(msg, user_id: int, api: APIGatewayClient,
 
     tdata = topics[topic_idx]
     title = tdata.get("title") or "Тема"
-    desc = tdata.get("description") or "Без описания."
-    tg_id = tdata.get("tg_id") or ""
-    mind = tdata.get("mindmap_url") or None
+    tg_id = (tdata.get("tg_id") or "").strip()
+    desc_url = (tdata.get("description") or "").strip() or None
+    mind_url = (tdata.get("mindmap_url") or "").strip() or None
 
-    text = t("topic_view_title").format(title=title, desc=desc)
-    has_video = bool(tg_id)
-    return await edit_or_respawn(msg, user_id, text,
-                                 kb_topic_detail(has_video, mind, subj_idx, sect_idx, topic_idx, back_page))
+    # Клава под видео/сообщением
+    markup = kb_topic_links(desc_url, mind_url, subj_idx, sect_idx, back_page)
+
+    # Если есть видео — отправляем его с подписью = название темы
+    if tg_id:
+        sent = False
+        try:
+            await msg.bot.send_video(
+                chat_id=msg.chat.id,
+                video=tg_id,
+                caption=title,  # название темы
+                reply_markup=markup,
+                protect_content=True,
+            )
+            sent = True
+        except Exception:
+            with contextlib.suppress(Exception):
+                await msg.bot.send_document(
+                    chat_id=msg.chat.id,
+                    document=tg_id,
+                    caption=title,
+                    reply_markup=markup,
+                    protect_content=True,
+                )
+                sent = True
+
+        if not sent:
+            # Если совсем не получилось — просто текст с кнопками
+            await msg.bot.send_message(
+                chat_id=msg.chat.id,
+                text=t("topic_video_error").format(title=title),
+                reply_markup=markup,
+                protect_content=True,
+            )
+        return
+
+    # Если видео нет — честно сообщаем и даем ссылки/навигацию
+    await msg.bot.send_message(
+        chat_id=msg.chat.id,
+        text=t("topic_no_video").format(title=title),
+        reply_markup=markup,
+        protect_content=True,
+    )
 
 
 # --- callbacks ---
@@ -151,31 +194,3 @@ async def cb_topic_view(cb: CallbackQuery, api_client: APIGatewayClient):
     await render_topic_view(cb.message, cb.from_user.id, api_client,
                             subj_idx=int(subj_idx), sect_idx=int(sect_idx),
                             topic_idx=int(topic_idx), back_page=int(back_page))
-
-
-@router.callback_query(F.data.startswith("topic:video:"))
-async def cb_topic_video(cb: CallbackQuery, api_client: APIGatewayClient):
-    await cb.answer()
-    _, _, subj_idx, sect_idx, topic_idx, _ = cb.data.split(":")
-    si, ci, ti = int(subj_idx), int(sect_idx), int(topic_idx)
-
-    subjects = await api_client.get_subjects()
-    subject = subjects[si]
-    sections = await api_client.get_subject_sections(cb.from_user.id, subject)
-    section_title = sections[ci]["title"]
-    data = await api_client.get_section_topics(section_title)
-    topics = list(data.get("topics") or [])
-    if not (0 <= ti < len(topics)):
-        return
-    tg_id = topics[ti].get("tg_id") or ""
-    if not tg_id:
-        return
-
-    ok = True
-    try:
-        await cb.message.bot.send_video(cb.message.chat.id, tg_id)
-    except Exception:
-        ok = False
-    if not ok:
-        with contextlib.suppress(Exception):
-            await cb.message.bot.send_document(cb.message.chat.id, tg_id)

@@ -128,3 +128,8 @@ LEXICON_RU.update({
     "email_change_success": "✅ E-mail успешно обновлён!",
     "email_change_fail": "❌ Не удалось обновить e-mail. Попробуйте позже.",
 })
+
+LEXICON_RU.update({
+  "topic_no_video": "Видео для «{title}» недоступно.",
+  "topic_video_error": "Не удалось отправить видео по теме «{title}». Попробуйте позже."
+})

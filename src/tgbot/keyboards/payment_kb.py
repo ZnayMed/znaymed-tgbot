@@ -4,18 +4,9 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from tgbot.lexicon import t
 
-# Заглушки цен
-ALL_SUBJECTS_PRICE = "999 ₽"
-PER_SUBJECT_PRICE = "249 ₽"
-
 
 def _truncate_title(title: str, limit: int = 40) -> str:
     return title if len(title) <= limit else (title[:limit] + "…")
-
-
-def _label_subject_with_price(title: str) -> str:
-    base = title if len(title) <= 40 else (title[:40] + "…")
-    return f"{base} — {PER_SUBJECT_PRICE}"
 
 
 def _add_pager(builder: InlineKeyboardBuilder, page: int, last_page: int, prev_cb: str, next_cb: str) -> None:

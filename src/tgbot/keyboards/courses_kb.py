@@ -59,7 +59,11 @@ def kb_sections(sections: list[dict], subj_idx: int, page: int = 0, per_page: in
     b = InlineKeyboardBuilder()
     total = len(sections)
     if total == 0:
-        b.row(InlineKeyboardButton(text="◀️ К предметам", callback_data="menu:courses"), width=1)
+        b.row(
+            InlineKeyboardButton(text="◀️ К предметам", callback_data="menu:courses"),
+            InlineKeyboardButton(text="◀️ В меню", callback_data="menu:root"),
+            width=2
+        )
         return b.as_markup()
 
     start = page * per_page
@@ -94,7 +98,11 @@ def kb_topics(topics: list[dict], subj_idx: int, sect_idx: int, page: int = 0, p
     b = InlineKeyboardBuilder()
     total = len(topics)
     if total == 0:
-        b.row(InlineKeyboardButton(text="◀️ К разделам", callback_data=f"sect:back:{subj_idx}"), width=1)
+        b.row(
+            InlineKeyboardButton(text="◀️ К разделам", callback_data=f"sect:back:{subj_idx}"),
+            InlineKeyboardButton(text="◀️ В меню", callback_data="menu:root"),
+            width=2
+        )
         return b.as_markup()
 
     start = page * per_page
@@ -125,15 +133,13 @@ def kb_topics(topics: list[dict], subj_idx: int, sect_idx: int, page: int = 0, p
     return b.as_markup()
 
 
-def kb_topic_detail(has_video: bool, mindmap_url: str | None, subj_idx: int, sect_idx: int, topic_idx: int,
-                    back_page: int):
+def kb_topic_links(desc_url: str | None, mindmap_url: str | None,
+                   subj_idx: int, sect_idx: int, back_page: int):
     b = InlineKeyboardBuilder()
-    row = []
-    if has_video:
-        row.append(InlineKeyboardButton(
-            text="▶️ Видео",
-            callback_data=f"topic:video:{subj_idx}:{sect_idx}:{topic_idx}:{back_page}"
-        ))
+
+    row: list[InlineKeyboardButton] = []
+    if desc_url:
+        row.append(InlineKeyboardButton(text="📄 Схема", url=desc_url))
     if mindmap_url:
         row.append(InlineKeyboardButton(text="🧠 Майнкарта", url=mindmap_url))
     if row:
@@ -141,8 +147,7 @@ def kb_topic_detail(has_video: bool, mindmap_url: str | None, subj_idx: int, sec
 
     b.row(
         InlineKeyboardButton(text="◀️ К темам", callback_data=f"topics:page:{subj_idx}:{sect_idx}:{back_page}"),
-        InlineKeyboardButton(text="◀️ В меню", callback_data="paysec:exit_menu"),
+        InlineKeyboardButton(text="◀️ В меню", callback_data="menu:root"),
         width=2
     )
-
     return b.as_markup()
