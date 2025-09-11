@@ -5,7 +5,7 @@ from aiogram.types import CallbackQuery
 
 from tgbot.lexicon import t
 from tgbot.services.api_client import APIGatewayClient
-from tgbot.keyboards.courses_kb import kb_subjects, kb_sections, kb_topics, kb_topic_detail, kb_topic_links
+from tgbot.keyboards.courses_kb import kb_subjects, kb_sections, kb_topics, kb_topic_links
 from .utils import edit_or_respawn
 
 router = Router(name="menu.courses")
