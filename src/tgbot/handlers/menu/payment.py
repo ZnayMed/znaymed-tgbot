@@ -64,8 +64,6 @@ async def render_pay_root(msg, user_id: int, api: APIGatewayClient, page: int = 
         return await edit_or_respawn(msg, user_id, t("pay_all_bought"), b.as_markup())
 
     all_btn_text = _format_money(total_discounted, currency) + _discount_suffix(total_subtotal, total_discounted)
-    if total_rule:
-        all_btn_text += f" · {total_rule}"
 
     return await edit_or_respawn(
         msg,
