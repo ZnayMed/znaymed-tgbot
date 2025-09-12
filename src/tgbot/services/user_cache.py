@@ -3,7 +3,7 @@ from redis.asyncio import Redis
 from redis.exceptions import ConnectionError
 
 REG_KEY_PREFIX = "reg:user:"
-REG_TTL = 300  # 24 часа в секундах
+REG_TTL = 7200  # 24 часа в секундах
 
 
 def _key(user_id: int | str) -> str:
