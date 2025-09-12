@@ -18,60 +18,98 @@ PER_PAGE_TOPICS = 10
 async def render_subjects(msg, user_id: int, api: APIGatewayClient, page: int = 0):
     try:
         subjects = await api.get_subjects()
+        subject_titles = api.subject_titles(subjects)
     except Exception:
-        # покажем ошибку и простую клаву «назад в меню» через пустой список
         return await edit_or_respawn(msg, user_id, t("courses_error"), kb_subjects([], page=0))
+
+    # Текст как раньше (без описаний на экране предметов)
     text = t("courses_title") if subjects else t("courses_empty")
-    return await edit_or_respawn(msg, user_id, text,
-                                 kb_subjects(subjects, page=page, per_page=PER_PAGE_SUBJ))
+
+    return await edit_or_respawn(
+        msg, user_id, text,
+        kb_subjects(subject_titles, page=page, per_page=PER_PAGE_SUBJ)
+    )
 
 
 async def render_sections(msg, user_id: int, api: APIGatewayClient, subj_idx: int, page: int = 0):
     try:
         subjects = await api.get_subjects()
+        subject_titles = api.subject_titles(subjects)
         subject = subjects[subj_idx]
+        subject_title = (subject.get("title") or "").strip()
+        subject_desc = (subject.get("description") or "").strip()
     except Exception:
-        return await edit_or_respawn(msg, user_id, t("sections_error"),
-                                     kb_subjects(await api.get_subjects(), page=0))
+        try:
+            subjects = await api.get_subjects()
+            titles = api.subject_titles(subjects)
+        except Exception:
+            titles = []
+        return await edit_or_respawn(msg, user_id, t("sections_error"), kb_subjects(titles, page=0))
+
     try:
-        sections = await api.get_subject_sections(user_id, subject)
+        sections = await api.get_subject_sections(user_id, subject_title)  # с description
     except Exception:
-        return await edit_or_respawn(msg, user_id, t("sections_error"),
-                                     kb_subjects(await api.get_subjects(), page=0))
-    text = t("sections_title").format(subject=subject) if sections else t("sections_empty")
-    return await edit_or_respawn(msg, user_id, text,
-                                 kb_sections(sections, subj_idx=subj_idx, page=page, per_page=PER_PAGE_SECT))
+        return await edit_or_respawn(msg, user_id, t("sections_error"), kb_subjects(subject_titles, page=0))
+
+    lines = [f"<b>{subject_title}</b>"]
+    if subject_desc:
+        lines.append(subject_desc)
+    lines.append("")
+    lines.append(t("sections_hint"))
+    text = "\n\n".join(lines)
+
+    return await edit_or_respawn(
+        msg, user_id, text,
+        kb_sections(sections, subj_idx=subj_idx, page=page, per_page=PER_PAGE_SECT)
+    )
 
 
 async def render_topics(msg, user_id: int, api: APIGatewayClient, subj_idx: int, sect_idx: int, page: int = 0):
     subjects = await api.get_subjects()
-    subject = subjects[subj_idx]
-    sections = await api.get_subject_sections(user_id, subject)
+    subject_titles = api.subject_titles(subjects)
+    subject_title = subject_titles[subj_idx]
+
+    sections = await api.get_subject_sections(user_id, subject_title)
     if not (0 <= sect_idx < len(sections)):
         return await edit_or_respawn(msg, user_id, t("topics_error"),
                                      kb_sections(sections, subj_idx=subj_idx, page=0))
-    section_title = sections[sect_idx]["title"]
+
+    section = sections[sect_idx]
+    section_title = (section.get("title") or "").strip()
+    section_desc = (section.get("description") or "").strip()
+
     try:
         payload = await api.get_section_topics(section_title)
         topics = list(payload.get("topics") or [])
     except Exception:
         return await edit_or_respawn(msg, user_id, t("topics_error"),
                                      kb_sections(sections, subj_idx=subj_idx, page=0))
-    text = t("topics_title").format(section=section_title) if topics else t("topics_empty")
-    return await edit_or_respawn(msg, user_id, text,
-                                 kb_topics(topics, subj_idx=subj_idx, sect_idx=sect_idx,
-                                           page=page, per_page=PER_PAGE_TOPICS))
+
+    lines = [f"<b>{section_title}</b>"]
+    if section_desc:
+        lines.append(section_desc)
+    lines.append("")
+    lines.append(t("topics_hint"))
+    text = "\n\n".join(lines)
+
+    return await edit_or_respawn(
+        msg, user_id, text,
+        kb_topics(topics, subj_idx=subj_idx, sect_idx=sect_idx, page=page, per_page=PER_PAGE_TOPICS)
+    )
 
 
 async def render_topic_view(msg, user_id: int, api: APIGatewayClient,
                             subj_idx: int, sect_idx: int, topic_idx: int, back_page: int):
     subjects = await api.get_subjects()
-    subject = subjects[subj_idx]
-    sections = await api.get_subject_sections(user_id, subject)
+    subject_titles = api.subject_titles(subjects)
+    subject_title = subject_titles[subj_idx]
+
+    sections = await api.get_subject_sections(user_id, subject_title)
     if not (0 <= sect_idx < len(sections)):
         return await render_sections(msg, user_id, api, subj_idx=subj_idx, page=0)
 
-    section_title = sections[sect_idx]["title"]
+    section_title = (sections[sect_idx].get("title") or "").strip()
+
     data = await api.get_section_topics(section_title)
     topics = list(data.get("topics") or [])
     if not (0 <= topic_idx < len(topics)):
@@ -86,12 +124,10 @@ async def render_topic_view(msg, user_id: int, api: APIGatewayClient,
     markup = kb_topic_links(desc_url, mind_url, subj_idx, sect_idx, back_page)
 
     if tg_id:
-        # Меняем/пересоздаём МЕНЮ как ВИДЕО (caption = название темы), пересылка запрещена
         media = InputMediaVideo(media=tg_id, caption=title, parse_mode="HTML")
         await edit_or_respawn_media(msg, user_id, media=media, reply_markup=markup, protect_content=True)
         return
 
-    # если у темы нет видео — оставляем меню текстовым
     await edit_or_respawn(
         msg, user_id,
         t("topic_no_video").format(title=title),

@@ -2,6 +2,10 @@ import httpx
 
 
 class APIGatewayClient(httpx.AsyncClient):
+    @staticmethod
+    def subject_titles(subjects: list[dict]) -> list[str]:
+        return [str((s.get("title") or "")).strip() for s in subjects if (s.get("title") or "").strip()]
+
     async def request_json(self, method: str, url: str, **kw):
         r = await self.request(method, url, **kw)
         r.raise_for_status()
@@ -24,9 +28,14 @@ class APIGatewayClient(httpx.AsyncClient):
         body = {"tgid": str(tg_user_id), "new_email": new_email}
         return await self.request_json("POST", "/change_email", json=body)
 
-    async def get_subjects(self) -> list[str]:
+    async def get_subjects(self) -> list[dict]:
         data = await self.request_json("GET", "/listsubjects")
-        return [str(s) for s in (data.get("subjects") or [])]
+        subs = data.get("subjects") or []
+        if subs and isinstance(subs[0], dict):
+            return subs
+
+        titles = data.get("titles") or subs
+        return [{"title": str(t), "description": ""} for t in (titles or [])]
 
     async def get_subject_sections(self, tg_user_id: int, subject: str) -> list[dict]:
         body = {"tgid": str(tg_user_id), "subject": subject}

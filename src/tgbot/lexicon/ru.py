@@ -103,9 +103,14 @@ LEXICON_RU.update({
     # карточка темы
     "topic_view_title": "<b>{title}</b>",
     "btn_video": "▶️ Видео",
-    "btn_mindmap": "🧠 Майнкарта",
+    "btn_mindmap": "🧠 Материалы",
     "back_to_topics": "◀️ К темам",
     "back_to_sections": "◀️ К разделам",
+})
+
+LEXICON_RU.update({
+    "sections_hint": "Выберите раздел, чтобы посмотреть доступные темы:",
+    "topics_hint": "Темы этого раздела:",
 })
 
 LEXICON_RU.update({
