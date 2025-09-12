@@ -139,9 +139,9 @@ def kb_topic_links(desc_url: str | None, mindmap_url: str | None,
 
     row: list[InlineKeyboardButton] = []
     if desc_url:
-        row.append(InlineKeyboardButton(text="📄 Схема", url=desc_url))
+        row.append(InlineKeyboardButton(text="📄 Материалы", url=desc_url))
     if mindmap_url:
-        row.append(InlineKeyboardButton(text="🧠 Майнкарта", url=mindmap_url))
+        row.append(InlineKeyboardButton(text="🧠 Майндкарта", url=mindmap_url))
     if row:
         b.row(*row, width=len(row))
 

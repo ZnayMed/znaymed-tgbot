@@ -103,7 +103,7 @@ LEXICON_RU.update({
     # карточка темы
     "topic_view_title": "<b>{title}</b>",
     "btn_video": "▶️ Видео",
-    "btn_mindmap": "🧠 Материалы",
+    "btn_mindmap": "🧠 Майндкарта",
     "back_to_topics": "◀️ К темам",
     "back_to_sections": "◀️ К разделам",
 })
