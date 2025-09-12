@@ -1,8 +1,7 @@
 import asyncio
 import logging
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, InlineKeyboardButton
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import CallbackQuery
 
 from tgbot.lexicon import t
 from tgbot.services.api_client import APIGatewayClient
@@ -23,6 +22,13 @@ def _format_money(kopeck: int, currency: str) -> str:
     return f"{rub}.{kop:02d} {curr_symbol}"
 
 
+def _discount_suffix(subtotal_kopeck: int, discounted_kopeck: int) -> str:
+    if subtotal_kopeck and discounted_kopeck < subtotal_kopeck:
+        pct = int(round((subtotal_kopeck - discounted_kopeck) * 100 / subtotal_kopeck))
+        return f" (−{pct}%)"
+    return ""
+
+
 async def _fetch_subject_total(api: APIGatewayClient, user_id: int, subject: str, sem: asyncio.Semaphore):
     async with sem:
         try:
@@ -34,47 +40,42 @@ async def _fetch_subject_total(api: APIGatewayClient, user_id: int, subject: str
 
 async def render_pay_root(msg, user_id: int, api: APIGatewayClient, page: int = 0):
     try:
-        subjects = await api.get_subjects()
+        pricing = await api.get_all_subjects_pricing(user_id)
     except Exception:
-        # в случае ошибки всё равно покажем шапку и кнопку "в меню"
         return await edit_or_respawn(msg, user_id, t("pay_error"), kb_pay_root([], page=0))
 
-    # считаем цены для каждого предмета и общий итог
+    subjects_raw = list(pricing.get("subjects") or [])
+    currency = str(pricing.get("currency") or "RUB")
+
+    subjects = [s.get("subject", "") for s in subjects_raw if s.get("subject")]
     subject_price_map: dict[str, str] = {}
     payable_subjects: set[str] = set()
-    all_total_kopeck = 0
-    all_currency = "RUB"
 
-    if subjects:
-        sem = asyncio.Semaphore(5)
-        tasks = [asyncio.create_task(_fetch_subject_total(api, user_id, s, sem)) for s in subjects]
-        results = await asyncio.gather(*tasks)
+    for s in subjects_raw:
+        subject = s.get("subject", "")
+        missing = int(s.get("missing_count", 0) or 0)
+        subtotal = int(s.get("subtotal_kopeck", 0) or 0)
+        discounted = int(s.get("discounted_kopeck", 0) or 0)
+        if subject and missing > 0 and discounted > 0:
+            subject_price_map[subject] = _format_money(discounted, currency) + _discount_suffix(subtotal, discounted)
+            payable_subjects.add(subject)
 
-        for subj, kopeck, curr in results:
-            if kopeck is None:
-                continue
-            all_total_kopeck += kopeck
-            all_currency = curr or all_currency
-            if kopeck > 0:
-                subject_price_map[subj] = _format_money(kopeck, curr or "RUB")
-                payable_subjects.add(subj)
+    total = pricing.get("total") or {}
+    total_missing = int(total.get("missing_count", 0) or 0)
+    total_subtotal = int(total.get("subtotal_kopeck", 0) or 0)
+    total_discounted = int(total.get("discounted_kopeck", 0) or 0)
+    total_rule = str(total.get("applied_rule") or "")
 
-    # кнопку "Все предметы" показываем только если есть что покупать
-    all_btn_text = (
-        f"Все предметы — {_format_money(all_total_kopeck, all_currency)}"
-        if all_total_kopeck > 0 else None
-    )
-
-    if all_total_kopeck <= 0:
+    if total_missing <= 0 or total_discounted <= 0:
+        from aiogram.utils.keyboard import InlineKeyboardBuilder
+        from aiogram.types import InlineKeyboardButton
         b = InlineKeyboardBuilder()
         b.row(InlineKeyboardButton(text="◀️ В меню", callback_data="menu:root"))
+        return await edit_or_respawn(msg, user_id, t("pay_all_bought"), b.as_markup())
 
-        return await edit_or_respawn(
-            msg,
-            user_id,
-            t("pay_all_bought"),
-            b.as_markup(),
-        )
+    all_btn_text = _format_money(total_discounted, currency) + _discount_suffix(total_subtotal, total_discounted)
+    if total_rule:
+        all_btn_text += f" · {total_rule}"
 
     return await edit_or_respawn(
         msg,
@@ -85,9 +86,9 @@ async def render_pay_root(msg, user_id: int, api: APIGatewayClient, page: int = 
             page=page,
             per_page=PER_PAGE_PAY,
             row_width=1,
-            all_btn_text=all_btn_text,
-            subject_price_map=subject_price_map,  # подписи цен
-            payable_subjects=payable_subjects,  # показываем только эти предметы
+            all_btn_text=f"Все разделы — {all_btn_text}",
+            subject_price_map=subject_price_map,
+            payable_subjects=payable_subjects,
         ),
     )
 
@@ -103,8 +104,6 @@ async def render_payment_screen(
         missing_sections: list[str] | None = None,
         show_amount=False
 ):
-    amount_text = _format_money(total_kopeck, currency)
-
     lines = [
         t("payment_screen_title"),
     ]
@@ -145,9 +144,10 @@ async def cb_pay_page(cb: CallbackQuery, api_client: APIGatewayClient):
 async def cb_pay_buy_all(cb: CallbackQuery, api_client: APIGatewayClient):
     await cb.answer()
     try:
-        subjects = await api_client.get_subjects()
+        pricing = await api_client.get_all_subjects_pricing(cb.from_user.id)
+        subjects = [s.get("subject") for s in (pricing.get("subjects") or []) if (s.get("missing_count") or 0) > 0]
     except Exception as e:
-        log.exception("get_subjects failed: %s", e)
+        log.exception("get_all_subjects_pricing failed: %s", e)
         await cb.answer(t("api_error"), show_alert=True)
         return
 
@@ -167,9 +167,16 @@ async def cb_pay_buy_all(cb: CallbackQuery, api_client: APIGatewayClient):
         await cb.answer(t("pay_nothing_to_buy"), show_alert=True)
         return
 
+    try:
+        priced = await api_client.get_sections_total(cb.from_user.id, sections)
+        total_kopeck = int(priced.get("total_kopeck", 0) or 0)
+        currency = str(priced.get("currency") or "")
+    except Exception as e:
+        log.exception("get_sections_total failed: %s", e)
+        total_kopeck, currency = 0, ""
+
     payment_id = str(resp.get("payment_id", ""))
     payment_url = str(resp.get("payment_url", ""))
-    status = str(resp.get("status", ""))
 
     if not payment_url:
         await cb.answer(t("pay_missing_url"), show_alert=True)
@@ -180,17 +187,16 @@ async def cb_pay_buy_all(cb: CallbackQuery, api_client: APIGatewayClient):
         cb.from_user.id,
         payment_id=payment_id,
         payment_url=payment_url,
-        total_kopeck=0,  # суммы пока нет
-        currency="",  # валюты пока нет
+        total_kopeck=total_kopeck,
+        currency=currency,
         missing_sections=sections,
-        show_amount=False,  # <-- скрываем сумму
+        show_amount=True,
     )
 
 
 @router.callback_query(F.data.startswith("pay:subject:"))
 async def cb_pay_buy_subject(cb: CallbackQuery, api_client: APIGatewayClient):
     await cb.answer()
-    # индекс предмета — глобальный (как в kb_pay_root)
     try:
         idx = int(cb.data.split(":")[-1])
     except Exception:
@@ -198,14 +204,14 @@ async def cb_pay_buy_subject(cb: CallbackQuery, api_client: APIGatewayClient):
         return
 
     try:
-        subjects = await api_client.get_subjects()
+        pricing = await api_client.get_all_subjects_pricing(cb.from_user.id)
+        subjects = [s.get("subject") for s in (pricing.get("subjects") or []) if s.get("subject")]
     except Exception as e:
-        log.exception("get_subjects failed: %s", e)
+        log.exception("get_all_subjects_pricing failed: %s", e)
         await cb.answer(t("api_error"), show_alert=True)
         return
 
     if not (0 <= idx < len(subjects)):
-        # список изменился; вернёмся на экран оплаты
         await render_pay_root(cb.message, cb.from_user.id, api_client, page=0)
         return
 
@@ -223,6 +229,14 @@ async def cb_pay_buy_subject(cb: CallbackQuery, api_client: APIGatewayClient):
         await cb.answer(t("pay_nothing_to_buy"), show_alert=True)
         return
 
+    try:
+        priced = await api_client.get_sections_total(cb.from_user.id, sections)
+        total_kopeck = int(priced.get("total_kopeck", 0) or 0)
+        currency = str(priced.get("currency") or "")
+    except Exception as e:
+        log.exception("get_sections_total failed: %s", e)
+        total_kopeck, currency = 0, ""
+
     payment_id = str(resp.get("payment_id", ""))
     payment_url = str(resp.get("payment_url", ""))
 
@@ -235,8 +249,8 @@ async def cb_pay_buy_subject(cb: CallbackQuery, api_client: APIGatewayClient):
         cb.from_user.id,
         payment_id=payment_id,
         payment_url=payment_url,
-        total_kopeck=0,
-        currency="",
+        total_kopeck=total_kopeck,
+        currency=currency,
         missing_sections=sections,
-        show_amount=False,  # <-- скрываем сумму
+        show_amount=True,
     )
