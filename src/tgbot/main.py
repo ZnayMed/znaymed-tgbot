@@ -44,6 +44,7 @@ async def set_commands():
     commands = [
         BotCommand(command="start", description="Старт"),
         BotCommand(command="info", description="Информация"),
+        BotCommand(command="help", description="Инструкция"),
         BotCommand(command="menu", description="Главное меню"),
         BotCommand(command="change_email", description="Смена почты")
     ]

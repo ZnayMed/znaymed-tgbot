@@ -11,7 +11,8 @@ MENU_KIND = "menu"
 
 async def _send_single_menu_unlocked(bot, chat_id: int, user_id: int, text: str, reply_markup):
     await clean_user_prompts(user_id, bot, kind=MENU_KIND)
-    sent = await bot.send_message(chat_id, text, reply_markup=reply_markup, parse_mode="HTML", protect_content=True)
+    sent = await bot.send_message(chat_id, text, reply_markup=reply_markup, parse_mode="HTML", protect_content=True,
+                                  disable_web_page_preview=True)
     await register_prompt(user_id, sent.chat.id, sent.message_id, kind=MENU_KIND)
     return sent
 
@@ -33,7 +34,8 @@ async def edit_or_respawn(msg, user_id: int, text: str, reply_markup):
             return await _send_single_menu_unlocked(msg.bot, msg.chat.id, user_id, text, reply_markup)
 
         try:
-            return await msg.edit_text(text, reply_markup=reply_markup, parse_mode="HTML")
+            return await msg.edit_text(text, reply_markup=reply_markup, parse_mode="HTML",
+                                       disable_web_page_preview=True)
         except TelegramBadRequest as e:
             em = (getattr(e, "message", "") or str(e)).lower()
 
