@@ -69,7 +69,6 @@ def kb_sections(sections: list[dict], subj_idx: int, page: int = 0, per_page: in
     start = page * per_page
     end = min(start + per_page, total)
     items = sections[start:end]
-    print(items)
 
     buttons: list[InlineKeyboardButton] = []
     for i, s in enumerate(items, start=start):
