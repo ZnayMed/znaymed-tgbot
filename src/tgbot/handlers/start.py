@@ -86,22 +86,34 @@ async def reg_email(msg: Message, state: FSMContext, api_client: APIGatewayClien
 
     email = _parse_email(msg.text)
     if not email:
-        await msg.answer(t("bad_email_format"))
+        await msg.answer(t("reg_tech_error"))
         return
 
     data = await state.get_data()
-    name: str = data["name"]
+    name: str = (data.get("name") or "").strip()
 
-    # Регистрация в бэкенде
-    await api_client.register_user(msg.from_user.id, name, email)
+    try:
+        resp = await api_client.register_user(msg.from_user.id, name, email)
+    except Exception:
+        await msg.answer(t("reg_tech_error"))
+        return
 
-    # Позитивный кэш
+    if not resp or not resp.get("success"):
+        await msg.answer(t("reg_tech_error"))
+        return
+
     r = get_redis()
     await cache_registered(r, msg.from_user.id)
-
     await state.clear()
-
-    # Чистим экраны регистрации и показываем успех
     await clean_user_prompts(msg.from_user.id, msg.bot, kind="reg")
-    await msg.answer(t("reg_success"))
-    # await send_main_menu(msg.bot, msg.chat.id, msg.from_user.id)
+
+    sections: list[str] = []
+    if resp.get("grant_success") and resp.get("granted_section"):
+        sections.append(str(resp["granted_section"]))
+
+    if sections:
+        sections_note = t("reg_sections_note").format(sections=", ".join(sections))
+    else:
+        sections_note = ""
+
+    await msg.answer(t("reg_success").format(sections_note=sections_note), parse_mode="HTML")
