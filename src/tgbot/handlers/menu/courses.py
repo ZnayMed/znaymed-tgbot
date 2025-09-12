@@ -56,7 +56,7 @@ async def render_sections(msg, user_id: int, api: APIGatewayClient, subj_idx: in
         lines.append(subject_desc)
     lines.append("")
     lines.append(t("sections_hint"))
-    text = "\n\n".join(lines)
+    text = "\n".join(lines)
 
     return await edit_or_respawn(
         msg, user_id, text,
