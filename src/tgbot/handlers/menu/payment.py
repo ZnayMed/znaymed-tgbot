@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
@@ -27,15 +26,6 @@ def _discount_suffix(subtotal_kopeck: int, discounted_kopeck: int) -> str:
         pct = int(round((subtotal_kopeck - discounted_kopeck) * 100 / subtotal_kopeck))
         return f" (−{pct}%)"
     return ""
-
-
-async def _fetch_subject_total(api: APIGatewayClient, user_id: int, subject: str, sem: asyncio.Semaphore):
-    async with sem:
-        try:
-            data = await api.get_subject_total(user_id, subject)
-            return subject, int(data.get("total_kopeck", 0)), str(data.get("currency", "RUB"))
-        except Exception:
-            return subject, None, None
 
 
 async def render_pay_root(msg, user_id: int, api: APIGatewayClient, page: int = 0):

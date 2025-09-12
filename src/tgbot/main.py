@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 
+from aiogram.exceptions import TelegramServerError, TelegramNetworkError
 from aiohttp import web
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -67,6 +68,25 @@ async def _close_api_client():
     log.info("API client closed")
 
 
+async def _tg_call_with_retries(coro_factory, *, retries: int = 5, base_delay: float = 1.0):
+    attempt = 0
+    while True:
+        try:
+            return await coro_factory()
+        except (TelegramServerError, TelegramNetworkError) as e:
+            if attempt >= retries:
+                log.warning("Telegram API: попытки исчерпаны: %s", e)
+                return None
+            delay = base_delay * (2 ** attempt)
+            log.warning("Telegram API ошибка (%s), retry in %.0fs (%d/%d)", e, delay, attempt +
+                        1, retries)
+            await asyncio.sleep(delay)
+            attempt += 1
+        except Exception as e:
+            log.error("Telegram API неожидаемая ошибка: %r", e)
+            return None
+
+
 def build_app() -> web.Application:
     # middlewares/routers — как в polling-версии
     dp.callback_query.middleware.register(AutoAnswerMiddleware())
@@ -92,14 +112,24 @@ def build_app() -> web.Application:
 
     # При старте приложения — ставим вебхук у Telegram
     async def _app_on_startup(_app: web.Application):
-        await bot.delete_webhook(drop_pending_updates=True)
-        await bot.set_webhook(
-            url=PUBLIC_WEBHOOK_URL,
-            secret_token=BOT_WEBHOOK_SECRET,
-            allowed_updates=["message", "callback_query", "inline_query", "chat_member"],
-            drop_pending_updates=True,
+        await _tg_call_with_retries(
+
+            lambda: bot.delete_webhook(drop_pending_updates=True, request_timeout=15)
         )
-        log.info("Webhook set to %s", PUBLIC_WEBHOOK_URL)
+        ok = await _tg_call_with_retries(
+
+            lambda: bot.set_webhook(
+                url=PUBLIC_WEBHOOK_URL,
+                secret_token=BOT_WEBHOOK_SECRET,
+                allowed_updates=["message", "callback_query", "inline_query", "chat_member"],
+                drop_pending_updates=True,
+                request_timeout=15,
+            )
+        )
+        if ok is None:
+            log.warning("Не удалось установить вебхук, сервис стартует и попробует позже.")
+        else:
+            log.info("Webhook set to %s", PUBLIC_WEBHOOK_URL)  # NEW
 
     # При остановке — удаляем вебхук (опционально)
     async def _app_on_shutdown(_app: web.Application):
