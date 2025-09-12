@@ -51,7 +51,7 @@ async def render_sections(msg, user_id: int, api: APIGatewayClient, subj_idx: in
     except Exception:
         return await edit_or_respawn(msg, user_id, t("sections_error"), kb_subjects(subject_titles, page=0))
 
-    lines = [f"<b>{subject_title}</b>"]
+    lines = [f"<b>{subject_title}</b>", ""]
     if subject_desc:
         lines.append(subject_desc)
     lines.append("")
@@ -85,12 +85,12 @@ async def render_topics(msg, user_id: int, api: APIGatewayClient, subj_idx: int,
         return await edit_or_respawn(msg, user_id, t("topics_error"),
                                      kb_sections(sections, subj_idx=subj_idx, page=0))
 
-    lines = [f"<b>{section_title}</b>"]
+    lines = [f"<b>{section_title}</b>", ""]
     if section_desc:
         lines.append(section_desc)
     lines.append("")
     lines.append(t("topics_hint"))
-    text = "\n\n".join(lines)
+    text = "\n".join(lines)
 
     return await edit_or_respawn(
         msg, user_id, text,
