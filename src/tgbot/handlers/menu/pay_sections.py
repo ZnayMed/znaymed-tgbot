@@ -69,11 +69,29 @@ async def _get_subjects_cached(state: FSMContext, api: APIGatewayClient) -> list
     subjects = data.get("subjects")
 
     if isinstance(subjects, list) and subjects:
-        return subjects
+        if isinstance(subjects[0], dict):
+            titles = _titles(subjects)
+            await state.update_data(subjects=titles)
+            return titles
+        return subjects  # уже список строк
 
-    subjects = await api.get_subjects()
-    await state.update_data(subjects=subjects)
-    return subjects
+    # Загружаем из API и нормализуем к названиям
+    api_subjects = await api.get_subjects()
+    titles = _titles(api_subjects)
+    await state.update_data(subjects=titles)
+    return titles
+
+
+def _titles(subjects: list) -> list[str]:
+    out: list[str] = []
+    for s in subjects or []:
+        if isinstance(s, dict):
+            title = (s.get("title") or "").strip()
+        else:
+            title = (str(s) or "").strip()
+        if title:
+            out.append(title)
+    return out
 
 
 async def _set_current_subject(state: FSMContext, subj_idx: int, subject: str) -> None:
@@ -120,7 +138,7 @@ async def render_paysec_subjects(
 ):
     subjects = (
         await _get_subjects_cached(state, api)
-        if state else await api.get_subjects()
+        if state else _titles(await api.get_subjects())
     )
 
     cart_n = 0
@@ -135,7 +153,7 @@ async def render_paysec_subjects(
         user_id,
         t("pay_sections_title"),
         kb_pay_sections_subjects(
-            subjects,
+            subjects,  # список строк (названий)
             page=page,
             per_page=PER_PAGE_SUBJ,
             row_width=3,
@@ -198,7 +216,8 @@ async def cb_pay_sections_root(cb: CallbackQuery, api_client: APIGatewayClient, 
     await state.set_state(PaySec.flow)
     await _set_cart(state, set())
 
-    subjects = await api_client.get_subjects()
+    api_subjects = await api_client.get_subjects()
+    subjects = _titles(api_subjects)
     await state.update_data(subjects=subjects, subj_idx=None, subject=None, sections_locked=None)
 
     await render_paysec_subjects(cb.message, cb.from_user.id, api_client, page=0, state=state)
