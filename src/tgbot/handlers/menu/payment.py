@@ -97,8 +97,9 @@ async def render_payment_screen(
     ]
 
     if show_amount and (total_kopeck or 0) > 0:
+        lines.append("")
         amount_text = _format_money(total_kopeck, currency)
-        lines.append(t("payment_screen_amount").format(amount=amount_text))
+        # lines.append(t("payment_screen_amount").format(amount=amount_text))
     if missing_sections is not None:
         lines.append(t("payment_screen_positions").format(n=len(missing_sections)))
         [lines.append(section) for section in missing_sections]
