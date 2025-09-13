@@ -23,7 +23,7 @@ def _format_money(kopeck: int, currency: str) -> str:
 
 def _discount_suffix(subtotal_kopeck: int, discounted_kopeck: int) -> str:
     if subtotal_kopeck and discounted_kopeck < subtotal_kopeck:
-        pct = (subtotal_kopeck - discounted_kopeck) * 100 / subtotal_kopeck
+        pct = int(round((subtotal_kopeck - discounted_kopeck) * 100 / subtotal_kopeck))
         return f" (−{pct}%)"
     return ""
 
