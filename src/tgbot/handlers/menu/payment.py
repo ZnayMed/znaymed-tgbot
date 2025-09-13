@@ -18,12 +18,12 @@ def _format_money(kopeck: int, currency: str) -> str:
     kop = max(0, int(kopeck)) % 100
     curr = currency or "RUB"
     curr_symbol = "₽" if curr.upper() in {"RUB", "RUR", "RUBLE", "RU"} or curr == "₽" else curr
-    return f"{rub}.{kop:02d} {curr_symbol}"
+    return f"{rub}.{kop:02d} {curr_symbol}" if kop != 0 else f"{rub} {curr_symbol}"
 
 
 def _discount_suffix(subtotal_kopeck: int, discounted_kopeck: int) -> str:
     if subtotal_kopeck and discounted_kopeck < subtotal_kopeck:
-        pct = int(round((subtotal_kopeck - discounted_kopeck) * 100 / subtotal_kopeck))
+        pct = (subtotal_kopeck - discounted_kopeck) * 100 / subtotal_kopeck
         return f" (−{pct}%)"
     return ""
 
