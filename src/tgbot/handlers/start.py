@@ -86,7 +86,7 @@ async def reg_email(msg: Message, state: FSMContext, api_client: APIGatewayClien
 
     email = _parse_email(msg.text)
     if not email:
-        await msg.answer(t("reg_tech_error"))
+        await msg.answer(t("bad_email_format"))
         return
 
     data = await state.get_data()
