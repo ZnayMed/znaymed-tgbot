@@ -1,6 +1,6 @@
 from typing import Optional
 from redis.asyncio import Redis
-from redis.exceptions import ConnectionError
+from redis.exceptions import ConnectionError, ReadOnlyError
 
 REG_KEY_PREFIX = "reg:user:"
 REG_TTL = 7200  # 24 часа в секундах
@@ -20,5 +20,5 @@ async def is_registered_cached(r: Redis, user_id: int | str) -> bool:
 async def cache_registered(r: Redis, user_id: int | str) -> None:
     try:
         await r.set(_key(user_id), 1, ex=REG_TTL)  # ex — TTL
-    except ConnectionError:
+    except (ConnectionError, ReadOnlyError):
         pass

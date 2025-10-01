@@ -3,14 +3,14 @@ import logging
 from aiogram import Bot
 from redis.exceptions import ReadOnlyError
 
-from tgbot.services.redis_client import get_redis, is_redis_available
+from tgbot.services.redis_client import get_redis, is_redis_available, is_redis_writable
 from tgbot.services.reg_prompts import list_prompts, clear_prompts, add_prompt
 
 log = logging.getLogger(__name__)
 
 
 async def clean_user_prompts(user_id: int, bot: Bot, kind: str) -> None:
-    if not await is_redis_available():
+    if not await is_redis_writable():
         return
     r = get_redis()
     for m in await list_prompts(r, user_id, kind):
@@ -31,7 +31,7 @@ async def clean_user_prompts(user_id: int, bot: Bot, kind: str) -> None:
 
 
 async def register_prompt(user_id: int, chat_id: int, message_id: int, kind: str) -> None:
-    if not await is_redis_available():
+    if not await is_redis_writable():
         return
     r = get_redis()
     try:

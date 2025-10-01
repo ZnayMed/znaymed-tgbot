@@ -4,7 +4,7 @@ import httpx
 
 from tgbot.lexicon import t
 from tgbot.services.api_client import APIGatewayClient
-from tgbot.services.redis_client import get_redis, is_redis_available
+from tgbot.services.redis_client import get_redis, is_redis_available, is_redis_writable
 from tgbot.services.user_cache import is_registered_cached, cache_registered
 
 
@@ -24,7 +24,7 @@ class RegistrationGuardMiddleware(BaseMiddleware):
 
         uid = event.from_user.id
         r = get_redis()
-        redis_up = await is_redis_available()
+        redis_up = await is_redis_writable()
 
         # 1) Redis
         if redis_up and await is_registered_cached(r, uid):
