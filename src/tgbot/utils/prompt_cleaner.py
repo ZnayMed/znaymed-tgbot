@@ -11,6 +11,7 @@ log = logging.getLogger(__name__)
 
 async def clean_user_prompts(user_id: int, bot: Bot, kind: str) -> None:
     if not await is_redis_writable():
+        log.warning("clean_user_prompts: Redis not writable/available; skip (user=%s kind=%s)", user_id, kind)
         return
     r = get_redis()
     for m in await list_prompts(r, user_id, kind):
@@ -32,6 +33,7 @@ async def clean_user_prompts(user_id: int, bot: Bot, kind: str) -> None:
 
 async def register_prompt(user_id: int, chat_id: int, message_id: int, kind: str) -> None:
     if not await is_redis_writable():
+        log.warning("register_prompt: Redis not writable/available; skip (user=%s kind=%s)", user_id, kind)
         return
     r = get_redis()
     try:
